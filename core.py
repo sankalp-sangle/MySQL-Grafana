@@ -10,17 +10,24 @@ class Dashboard:
 class Dashboard_Properties:
     def __init__(self, id = None, uid = None, title = None, timezone = None, schemaVersion = None, version = None):
         if id is None:
-            self.id = "null"
+            id = "null"
         if uid is None:
-            self.uid = "null"
+            uid = "null"
         if title is None:
-            self.title = "No title assigned 2"
+            title = "No title assigned to this dashboard"
         if timezone is None:
-            self.timezone = "browser"
+            timezone = "browser"
         if schemaVersion is None:
-            self.schemaVersion = "21"
+            schemaVersion = "21"
         if version is None:
-            self.version = "0"
+            version = "0"
+            
+        self.id = id
+        self.uid = uid
+        self.title = title
+        self.timezone = timezone
+        self.schemaVersion = schemaVersion
+        self.version = version
         self.json_representation = ""
         
     def get_json_string(self):

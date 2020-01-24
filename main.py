@@ -3,7 +3,8 @@ from core import Dashboard_Properties
 from core import Dashboard
 
 URL = "http://localhost:3000/api/dashboards/db"
-API_KEY = 'eyJrIjoiR1NROFFyS215Sm9EeThIYkhDaVdmQlA2NFBTcjNXQ0IiLCJuIjoibXlLZXkiLCJpZCI6MX0='
+API_KEY = 'eyJrIjoiQjBXRFZ4NHJGVWsySWtneFp4VlVEbjVabm1NM0p6VnMiLCJuIjoibXlLZXkiLCJpZCI6MX0='
+
 headers = {
   'Accept': 'application/json',
   'Content-Type': 'application/json',
@@ -13,7 +14,7 @@ headers = {
 
 def main():
 
-    properties = Dashboard_Properties()
+    properties = Dashboard_Properties(title="This is my custom dashboard!")
     dashboard = Dashboard(panels = None,properties=properties)
     # print(dashboard.get_json_string())
     payload = "{ \"dashboard\": {" + dashboard.get_json_string() + "}, \"overwrite\": false}"
