@@ -5,7 +5,14 @@ class Dashboard:
         self.json_representation = ""
 
     def get_json_string(self):
-        return "{}".format(self.properties.get_json_string())
+        panelJSON = ""
+        
+        for panel in self.panels:
+            panelJSON += "{" + panel.get_json_string() + "},"
+        
+        panelJSON = panelJSON[:-1]
+
+        return "{}, \"panels\":[{}]".format(self.properties.get_json_string(), panelJSON)
 
 class Dashboard_Properties:
     def __init__(self, id = None, uid = None, title = None, timezone = None, schemaVersion = None, version = None, time = None):
@@ -37,7 +44,23 @@ class Dashboard_Properties:
         return "\"id\": {},\"uid\": {},\"title\": \"{}\",\"timezone\": \"{}\",\"schemaVersion\": {},\"version\": {},\"time\":{}".format(self.id, self.uid, self.title, self.timezone, self.schemaVersion, self.version, "{" + self.time.get_json_string() + "}")
 
 class Panel:
-    pass
+    def __init__(self, datasource = None, id = None, title = None, panelType = None):
+        if datasource is None:
+            datasource = "MySQL"
+        if id is None:
+            id = "1"
+        if title is None:
+            title = "This is my sample panel title!"
+        if panelType is None:
+            panelType = "graph"
+
+        self.datasource = datasource
+        self.id = id
+        self.title = title
+        self.panelType = panelType
+
+    def get_json_string(self):
+        return "\"datasource\": \"{}\",\"id\": {},\"title\": \"{}\",\"type\":\"{}\"".format(self.datasource, self.id, self.title, self.panelType)
 
 class Time:
 
@@ -52,11 +75,11 @@ class Time:
 
     def __init__(self, timeFrom = None, timeTo = None, fromRequiresConversion = True, toRequiresConversion = True):
         if timeFrom is None:
-            self.timeFrom = "now"
+            timeFrom = "now"
             fromRequiresConversion = False
 
         if timeTo is None:
-            self.timeTo = "now - 6h"
+            timeTo = "now - 6h"
             toRequiresConversion = False
 
         self.timeFrom = timeFrom
