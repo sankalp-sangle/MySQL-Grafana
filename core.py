@@ -3,7 +3,7 @@ class Dashboard:
         if properties is None:
             properties = Dashboard_Properties()
         if panels is None:
-            panels = []
+            panels = [Panel(title="Sample Panel")]
 
         self.properties          = properties
         self.panels              = panels
@@ -103,6 +103,46 @@ class Panel:
 
     def get_json_string(self):
         return "\"datasource\": \"{}\",\"id\": {},\"title\": \"{}\",\"type\":\"{}\",\"gridPos\":{}".format(self.datasource, self.id, self.title, self.panelType, "{" + self.gridPos.get_json_string() + "}")
+
+class Target:
+
+    DEFAULT_FORMAT = 'time_series'
+    DEFAULT_METRIC = 'switch'
+    DEFAULT_RAW_SQL = ''
+    DEFAULT_REFID = 'A'
+    DEFAULT_TABLE = 'packetrecords'
+    DEFAULT_TIME_COLUMN = 'time_in'
+    DEFAULT_TIME_COLUMN_TYPE = 'bigint'
+
+    def __init__(self, format = None, group = None, metricColumn = None, rawQuery = None, rawSql = None, refId = None, select = None, table = None, timeColumn = None, timeColumnType = None, where = None):
+        if format is None:
+            format = Target.DEFAULT_FORMAT
+        if group is None:
+            # group = Group()
+            pass
+        if metricColumn is None:
+            metricColumn = Target.DEFAULT_METRIC
+        if rawQuery is None:
+            rawQuery = False
+        if rawSql is None:
+            rawSql = Target.DEFAULT_RAW_SQL
+        if refId is None:
+            refId = Target.DEFAULT_REFID
+        if select is None:
+            # select = Select()
+            pass
+        if table is None:
+            table = Target.DEFAULT_TABLE
+            pass
+        if timeColumn is None:
+            timeColumn = Target.DEFAULT_TIME_COLUMN
+            pass
+        if timeColumnType is None:
+            timeColumnType = Target.DEFAULT_TIME_COLUMN_TYPE
+            pass
+        if where is None:
+            # where = Where()
+            pass
 
 class Time:
 
