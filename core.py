@@ -10,10 +10,10 @@ class Dashboard:
         self.json_representation = ""
 
     def get_json_string(self):
-        panelJSON = self.get_colective_panels_json()
+        panelJSON = self.get_collective_panels_json()
         return "{}, \"panels\":[{}]".format(self.properties.get_json_string(), panelJSON)
 
-    def get_colective_panels_json(self):
+    def get_collective_panels_json(self):
         if self.panels is []:
             return ""
             
@@ -82,7 +82,7 @@ class Panel:
 
     GLOBAL_ID = 1
 
-    def __init__(self, datasource = None, id = None, title = None, panelType = None, gridPos = None):
+    def __init__(self, datasource = None, id = None, title = None, panelType = None, gridPos = None, targets = None):
         if datasource is None:
             datasource = "MySQL"
         if id is None:
@@ -94,15 +94,32 @@ class Panel:
             panelType = "graph"
         if gridPos is None:
             gridPos = Grid_Position()
+        if targets is None:
+            targets = [Target()]
 
         self.datasource = datasource
         self.id = id
         self.title = title
         self.panelType = panelType
         self.gridPos = gridPos
+        self.targets = targets
+
+    def get_collective_targets_json(self):
+        if self.targets is []:
+            return ""
+            
+        targetJSON = ""
+        for target in self.targets:
+            targetJSON += "{" + target.get_json_string() + "},"
+
+        #Remove trailing comma
+        targetJSON = targetJSON[:-1]
+        
+        return targetJSON
 
     def get_json_string(self):
-        return "\"datasource\": \"{}\",\"id\": {},\"title\": \"{}\",\"type\":\"{}\",\"gridPos\":{}".format(self.datasource, self.id, self.title, self.panelType, "{" + self.gridPos.get_json_string() + "}")
+        targetJSON = self.get_collective_targets_json()
+        return "\"datasource\": \"{}\",\"id\": {},\"title\": \"{}\",\"type\":\"{}\",\"gridPos\":{}, \"targets\": [{}]".format(self.datasource, self.id, self.title, self.panelType, "{" + self.gridPos.get_json_string() + "}", targetJSON)
 
 class Target:
 
@@ -126,7 +143,7 @@ class Target:
         self.refId = refId
 
     def get_json_string(self):
-        pass
+        return "\"format\": \"{}\",\"rawQuery\": {},\"rawSql\": \"{}\",\"refId\": \"{}\"".format(self.format, "true" if self.rawQuery else "false", self.rawSql, self.refId)
 
 class Time:
 
