@@ -106,68 +106,27 @@ class Panel:
 
 class Target:
 
-    DEFAULT_FORMAT = 'time_series'
-    DEFAULT_METRIC = 'switch'
-    DEFAULT_RAW_SQL = ''
-    DEFAULT_REFID = 'A'
-    DEFAULT_TABLE = 'packetrecords'
-    DEFAULT_TIME_COLUMN = 'time_in'
-    DEFAULT_TIME_COLUMN_TYPE = 'bigint'
+    DEFAULT_FORMAT = "time_series"
+    DEFAULT_RAW_SQL = ""
+    DEFAULT_REFID = "A"
 
-    def __init__(self, format = None, group = None, metricColumn = None, rawQuery = None, rawSql = None, refId = None, select = None, table = None, timeColumn = None, timeColumnType = None, where = None):
+    def __init__(self, format = None, rawQuery = None, rawSql = None, refId = None):
         if format is None:
             format = Target.DEFAULT_FORMAT
-        if group is None:
-            group = Group()
-            pass
-        if metricColumn is None:
-            metricColumn = Target.DEFAULT_METRIC
         if rawQuery is None:
-            rawQuery = False
+            rawQuery = True
         if rawSql is None:
             rawSql = Target.DEFAULT_RAW_SQL
         if refId is None:
             refId = Target.DEFAULT_REFID
-        if select is None:
-            select = Select()
-            pass
-        if table is None:
-            table = Target.DEFAULT_TABLE
-            pass
-        if timeColumn is None:
-            timeColumn = Target.DEFAULT_TIME_COLUMN
-            pass
-        if timeColumnType is None:
-            timeColumnType = Target.DEFAULT_TIME_COLUMN_TYPE
-            pass
-        if where is None:
-            where = Where()
-            pass
 
         self.format = format
-        self.group = group
-        self.metricColumn = metricColumn
         self.rawQuery = rawQuery
         self.rawSql = rawSql
         self.refId = refId
-        self.select = select
-        self.table = table
-        self.timeColumn = timeColumn
-        self.timeColumnType = timeColumnType
-        self.where = where
 
     def get_json_string(self):
         pass
-
-class Select():
-    pass
-
-class Group():
-    pass
-
-class Where():
-    pass
-
 
 class Time:
 
