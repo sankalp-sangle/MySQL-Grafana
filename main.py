@@ -5,8 +5,8 @@ from core import Dashboard
 from core import Panel
 from core import Grid_Position
 
-URL             = "http://172.26.191.244:3000/api/dashboards/db"
-API_KEY         = "eyJrIjoid3NxM2VGZHlpVGhVVzNKZEtsNktkNzV6S3NLSFRoNTAiLCJuIjoidGVzdCIsImlkIjoxfQ=="
+URL             = "http://localhost:3000/api/dashboards/db"
+API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
 TIME_FROM       = "1998-04-03"
 TIME_TO         = "2020-04-03"
 DASHBOARD_TITLE = "This is a sample title!"

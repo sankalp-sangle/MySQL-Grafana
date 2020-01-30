@@ -118,7 +118,7 @@ class Target:
         if format is None:
             format = Target.DEFAULT_FORMAT
         if group is None:
-            # group = Group()
+            group = Group()
             pass
         if metricColumn is None:
             metricColumn = Target.DEFAULT_METRIC
@@ -129,7 +129,7 @@ class Target:
         if refId is None:
             refId = Target.DEFAULT_REFID
         if select is None:
-            # select = Select()
+            select = Select()
             pass
         if table is None:
             table = Target.DEFAULT_TABLE
@@ -141,8 +141,33 @@ class Target:
             timeColumnType = Target.DEFAULT_TIME_COLUMN_TYPE
             pass
         if where is None:
-            # where = Where()
+            where = Where()
             pass
+
+        self.format = format
+        self.group = group
+        self.metricColumn = metricColumn
+        self.rawQuery = rawQuery
+        self.rawSql = rawSql
+        self.refId = refId
+        self.select = select
+        self.table = table
+        self.timeColumn = timeColumn
+        self.timeColumnType = timeColumnType
+        self.where = where
+
+    def get_json_string(self):
+        pass
+
+class Select():
+    pass
+
+class Group():
+    pass
+
+class Where():
+    pass
+
 
 class Time:
 
