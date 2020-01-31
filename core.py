@@ -81,17 +81,20 @@ class Grid_Position:
 class Panel:
 
     GLOBAL_ID = 1
+    DEFAULT_DATASOURCE = "MySQL"
+    DEFAULT_TITLE = "This is a sample panel title!"
+    DEFAULT_PANEL_TYPE = "graph"
 
     def __init__(self, datasource = None, id = None, title = None, panelType = None, gridPos = None, targets = None):
         if datasource is None:
-            datasource = "MySQL"
+            datasource = Panel.DEFAULT_DATASOURCE
         if id is None:
             id = str(Panel.GLOBAL_ID)
             Panel.GLOBAL_ID += 1
         if title is None:
-            title = "This is my sample panel title!"
+            title = Panel.DEFAULT_TITLE
         if panelType is None:
-            panelType = "graph"
+            panelType = Panel.DEFAULT_PANEL_TYPE
         if gridPos is None:
             gridPos = Grid_Position()
         if targets is None:
