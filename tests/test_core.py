@@ -2,6 +2,7 @@ import unittest
 import requests
 import json
 import datetime
+import time
 
 from core import Dashboard_Properties
 from core import Time
@@ -11,12 +12,13 @@ from core import Grid_Position
 from core import Target
 from core import MySQL_Manager
 
-URL             = "http://172.26.191.138:3000/api/dashboards/db"
-API_KEY         = "eyJrIjoia3J0T3JpcHl6U3d6Nzg0NU1zaFFhdE0zUW1CaVNSb04iLCJuIjoibXlrZXkiLCJpZCI6MX0="
+URL             = "http://localhost:3000/api/dashboards/db"
+API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
 TIME_FROM = "2039-01-01"
 TIME_TO   = "2042-01-01"
 
-TEST_QUERY = r'SELECT FROM_UNIXTIME(time_in) \"time\", concat(\"Switch\",switch) AS metric, time_queue FROM packetrecords ORDER BY time_in'
+TEST_QUERY1 = r'SELECT time_in as \"time\", concat(\"Switch\",switch) AS metric, time_queue FROM packetrecords ORDER BY time_in'
+TEST_QUERY2 = r'SELECT from_unixtime(time_in) as \"time\", concat(\"Switch\",switch) AS metric, time_queue FROM packetrecords ORDER BY time_in'
 
 headers = {
   'Accept': 'application/json',
@@ -61,14 +63,35 @@ class Test_Core(unittest.TestCase):
         self.assertTrue("success" in json_response)
 
     def test_time_generation(self):
+
+        YEAR_SEC = 31556926
+        MONTH_SEC = 2629743
+        DAY_SEC = 86400
+
         mysql_manager = MySQL_Manager()
 
-        time_from = mysql_manager.execute_query('select from_unixtime(min(time_in)) from packetrecords')
-        time_to = mysql_manager.execute_query('select from_unixtime(max(time_in)) from packetrecords')
+        time_from = mysql_manager.execute_query('select min(time_in) from packetrecords')
+        time_to = mysql_manager.execute_query('select max(time_in) from packetrecords')
 
-        time_from = time_from[0][0].strftime("%Y-%m-%d")
-        time_to = time_to[0][0].strftime("%Y-%m-%d")
+        time_from_seconds = time_from[0][0]
+        time_to_seconds = time_to[0][0]
+
+        year_from = 1970 + time_from_seconds // YEAR_SEC
+        year_to = 1970 + 1 + (time_to_seconds // YEAR_SEC)
+
+        time_from = "{}-{}-{}".format( year_from, "01", "01")
+        time_to = "{}-{}-{}".format(year_to, "01", "01")
+
+        print(time_from, "\n", time_to)
+
+        # time_from = time_from[0][0].strftime("%Y-%m-%d")
+        # time_to = time_to[0][0].strftime("%Y-%m-%d")
         
+        TEST_QUERY = ""
+        if year_to < 2038:
+            TEST_QUERY = TEST_QUERY2
+        else:
+            TEST_QUERY = TEST_QUERY1
         dashboard = Dashboard(properties=Dashboard_Properties(title="This is my test dashboard wuw" ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=[Panel(title="My sample panel", targets = [Target(rawSql=TEST_QUERY)])])
         payload = get_final_payload(dashboard)
         print(payload)
