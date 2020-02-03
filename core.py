@@ -1,3 +1,6 @@
+import mysql.connector
+from mysql.connector import Error
+
 class Dashboard:
     def __init__(self, panels = None, properties = None):
         if properties is None:
@@ -177,3 +180,48 @@ class Time:
         self.timeFrom = Time.convert_to_standard_format(self.timeFrom, self.fromRequiresConversion)
         self.timeTo = Time.convert_to_standard_format(self.timeTo, self.toRequiresConversion)
         return "\"from\": {},\"to\": {}".format(self.timeFrom, self.timeTo)
+
+class MySQL_Manager:
+
+    DEFAULT_HOST = 'localhost'
+    DEFAULT_DATABASE = 'netplay'
+    DEFAULT_USER = 'sankalp'
+    DEFAULT_PASSWORD = 'sankalp'
+
+    def __init__(self, connector = None, host = None, database = None, user = None, password = None):
+        if host is None:
+            host = MySQL_Manager.DEFAULT_HOST
+        if database is None:
+            database = MySQL_Manager.DEFAULT_DATABASE
+        if user is None:
+            user = MySQL_Manager.DEFAULT_USER
+        if password is None:
+            password = MySQL_Manager.DEFAULT_PASSWORD
+
+        self.host = host
+        self.database = database
+        self.user = user
+        self.password = password
+        
+        try:
+            self.connector = mysql.connector.connect(host = self.host, database = self.database, user = self.user, password = self.password)
+            if self.connector.is_connected():
+                db_Info = self.connector.get_server_info()
+                print("Connected to MySQL Server version ", db_Info)
+
+        except Error as e:
+            print("Error while connecting to MySQL", e)
+    
+    def execute_query(self, query):
+        cursor = self.connector.cursor()
+        try:
+            cursor.execute(query)
+        except Error as e:
+            print("Failed to execute query", e)
+            return []
+        finally:
+            return cursor.fetchall()
+
+
+
+        

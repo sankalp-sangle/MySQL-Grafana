@@ -1,6 +1,7 @@
 import unittest
 import requests
 import json
+import datetime
 
 from core import Dashboard_Properties
 from core import Time
@@ -8,13 +9,14 @@ from core import Dashboard
 from core import Panel
 from core import Grid_Position
 from core import Target
+from core import MySQL_Manager
 
 URL             = "http://172.26.191.138:3000/api/dashboards/db"
 API_KEY         = "eyJrIjoia3J0T3JpcHl6U3d6Nzg0NU1zaFFhdE0zUW1CaVNSb04iLCJuIjoibXlrZXkiLCJpZCI6MX0="
 TIME_FROM = "2039-01-01"
 TIME_TO   = "2042-01-01"
 
-TEST_QUERY = r'SELECT time_in DIV 86400 * 86400 as \"time\", switch AS metric, avg(drops) FROM packetrecords group by 1,2 ORDER BY time_in DIV 86400 * 86400'
+TEST_QUERY = r'SELECT FROM_UNIXTIME(time_in) \"time\", concat(\"Switch\",switch) AS metric, time_queue FROM packetrecords ORDER BY time_in'
 
 headers = {
   'Accept': 'application/json',
@@ -58,6 +60,23 @@ class Test_Core(unittest.TestCase):
         print(json_response)
         self.assertTrue("success" in json_response)
 
+    def test_time_generation(self):
+        mysql_manager = MySQL_Manager()
+
+        time_from = mysql_manager.execute_query('select from_unixtime(min(time_in)) from packetrecords')
+        time_to = mysql_manager.execute_query('select from_unixtime(max(time_in)) from packetrecords')
+
+        time_from = time_from[0][0].strftime("%Y-%m-%d")
+        time_to = time_to[0][0].strftime("%Y-%m-%d")
+        
+        dashboard = Dashboard(properties=Dashboard_Properties(title="This is my test dashboard wuw" ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=[Panel(title="My sample panel", targets = [Target(rawSql=TEST_QUERY)])])
+        payload = get_final_payload(dashboard)
+        print(payload)
+        response = requests.request("POST", url=URL, headers=headers, data = payload)
+        json_response = str(response.text.encode('utf8'))
+        print(json_response)
+        self.assertTrue("success" in json_response)
+
     def test_get_json_string(self):
         self.assertTrue(is_json("{" + self.time.get_json_string() + "}"))
         for target in self.targets:
@@ -65,6 +84,7 @@ class Test_Core(unittest.TestCase):
         self.assertTrue(is_json("{" + self.gridPos.get_json_string() + "}"))
         for panel in self.panels:
             self.assertTrue(is_json("{" + panel.get_json_string() + "}"))
+        print(self.dashboard.get_json_string())
 
 if __name__ == '__main__':
     unittest.main()
