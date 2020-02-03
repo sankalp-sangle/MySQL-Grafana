@@ -60,8 +60,8 @@ class Dashboard_Properties:
 
 class Grid_Position:
     
-    DEFAULT_HEIGHT = 8
-    DEFAULT_WIDTH = 12
+    DEFAULT_HEIGHT = 12
+    DEFAULT_WIDTH = 18
 
     def __init__(self, x = None, y = None, height = None, width = None):
         if x is None:

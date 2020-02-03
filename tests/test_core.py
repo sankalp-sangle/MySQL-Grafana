@@ -17,8 +17,10 @@ API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoib
 TIME_FROM = "2039-01-01"
 TIME_TO   = "2042-01-01"
 
-TEST_QUERY1 = r'SELECT time_in as \"time\", concat(\"Switch\",switch) AS metric, time_queue FROM packetrecords ORDER BY time_in'
-TEST_QUERY2 = r'SELECT from_unixtime(time_in) as \"time\", concat(\"Switch\",switch) AS metric, time_queue FROM packetrecords ORDER BY time_in'
+TEST_QUERY1 = r'SELECT time_in as \"time\", concat(\"Switch \",switch) AS metric, time_queue FROM packetrecords where time_in != 0 ORDER BY time_in'
+TEST_QUERY2 = r'SELECT from_unixtime(time_in) as \"time\", concat(\"Switch \",switch) AS metric, time_queue FROM packetrecords where time_in != 0 ORDER BY time_in'
+TEST_QUERY3 = r'SELECT time_in as \"time\", concat(\"Switch \",switch) AS metric, drops FROM packetrecords where time_in != 0 ORDER BY time_in'
+TEST_QUERY4 = r'SELECT from_unixtime(time_in) as \"time\", concat(\"Switch \",switch) AS metric, drops FROM packetrecords where time_in != 0 ORDER BY time_in'
 
 headers = {
   'Accept': 'application/json',
@@ -54,7 +56,7 @@ class Test_Core(unittest.TestCase):
 
     def test_dashboard(self):
 
-        dashboard = Dashboard(properties=Dashboard_Properties(title="Test Dashboard" ,time=Time(timeFrom="2039-10-01", timeTo="2042-01-01")), panels=[Panel(title="My sample panel", targets = [Target(rawSql=TEST_QUERY)])])
+        dashboard = Dashboard(properties=Dashboard_Properties(title="Test Dashboard" ,time=Time(timeFrom="2039-10-01", timeTo="2042-01-01")), panels=[Panel(title="My sample panel", targets = [Target(rawSql='select * from links')])])
         payload = get_final_payload(dashboard)
         print(payload)
         response = requests.request("POST", url=URL, headers=headers, data = payload)
@@ -64,41 +66,39 @@ class Test_Core(unittest.TestCase):
 
     def test_time_generation(self):
 
+        #Seconds in a year
         YEAR_SEC = 31556926
-        MONTH_SEC = 2629743
-        DAY_SEC = 86400
 
         mysql_manager = MySQL_Manager()
 
-        time_from = mysql_manager.execute_query('select min(time_in) from packetrecords')
-        time_to = mysql_manager.execute_query('select max(time_in) from packetrecords')
+        #time_from and time_to are lists of a tuple, [(time in seconds, 0)] like so
+        time_from_seconds = mysql_manager.execute_query('select min(time_in) from packetrecords')[0][0]
+        time_to_seconds = mysql_manager.execute_query('select max(time_in) from packetrecords')[0][0]
 
-        time_from_seconds = time_from[0][0]
-        time_to_seconds = time_to[0][0]
-
-        year_from = 1970 + time_from_seconds // YEAR_SEC
+        #Convert to date format
+        year_from = 1970 + (time_from_seconds // YEAR_SEC)
         year_to = 1970 + 1 + (time_to_seconds // YEAR_SEC)
 
-        time_from = "{}-{}-{}".format( year_from, "01", "01")
-        time_to = "{}-{}-{}".format(year_to, "01", "01")
+        assert year_from < year_to
+
+        time_from = self.get_formatted_time(year_from)
+        time_to = self.get_formatted_time(year_to)
 
         print(time_from, "\n", time_to)
-
-        # time_from = time_from[0][0].strftime("%Y-%m-%d")
-        # time_to = time_to[0][0].strftime("%Y-%m-%d")
         
-        TEST_QUERY = ""
-        if year_to < 2038:
-            TEST_QUERY = TEST_QUERY2
-        else:
-            TEST_QUERY = TEST_QUERY1
-        dashboard = Dashboard(properties=Dashboard_Properties(title="This is my test dashboard wuw" ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=[Panel(title="My sample panel", targets = [Target(rawSql=TEST_QUERY)])])
+        TEST_QUERY = TEST_QUERY2 if year_to < 2038 else TEST_QUERY1
+        OTHER_TEST_QUERY = TEST_QUERY4 if year_to < 2038 else TEST_QUERY3
+
+        dashboard = Dashboard(properties=Dashboard_Properties(title="Pcap 74" ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=[Panel(title="Time_queue", targets = [Target(rawSql=TEST_QUERY)]), Panel(title="drops", targets = [Target(rawSql=OTHER_TEST_QUERY)])])
         payload = get_final_payload(dashboard)
         print(payload)
         response = requests.request("POST", url=URL, headers=headers, data = payload)
         json_response = str(response.text.encode('utf8'))
         print(json_response)
         self.assertTrue("success" in json_response)
+
+    def get_formatted_time(self, year):
+        return "{}-{}-{}".format(year, "01", "01")
 
     def test_get_json_string(self):
         self.assertTrue(is_json("{" + self.time.get_json_string() + "}"))
