@@ -220,7 +220,8 @@ class MySQL_Manager:
             print("Failed to execute query", e)
             return []
         finally:
-            return cursor.fetchall()
+            if cursor.with_rows:
+                return cursor.fetchall()
 
 
 

@@ -12,8 +12,9 @@ from core import Grid_Position
 from core import Target
 from core import MySQL_Manager
 
-URL             = "http://localhost:3000/api/dashboards/db"
-API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
+HOST            = "172.26.191.110"
+URL             = "http://" + HOST + ":3000/api/dashboards/db"
+API_KEY         = "eyJrIjoia3J0T3JpcHl6U3d6Nzg0NU1zaFFhdE0zUW1CaVNSb04iLCJuIjoibXlrZXkiLCJpZCI6MX0="
 TIME_FROM = "2039-01-01"
 TIME_TO   = "2042-01-01"
 
@@ -21,6 +22,8 @@ TEST_QUERY1 = r'SELECT time_in as \"time\", concat(\"Switch \",switch) AS metric
 TEST_QUERY2 = r'SELECT from_unixtime(time_in) as \"time\", concat(\"Switch \",switch) AS metric, time_queue FROM packetrecords where time_in != 0 ORDER BY time_in'
 TEST_QUERY3 = r'SELECT time_in as \"time\", concat(\"Switch \",switch) AS metric, drops FROM packetrecords where time_in != 0 ORDER BY time_in'
 TEST_QUERY4 = r'SELECT from_unixtime(time_in) as \"time\", concat(\"Switch \",switch) AS metric, drops FROM packetrecords where time_in != 0 ORDER BY time_in'
+
+CLEANUP_QUERIES = ['delete from packetrecords where time_in = 0']
 
 headers = {
   'Accept': 'application/json',
@@ -69,8 +72,11 @@ class Test_Core(unittest.TestCase):
         #Seconds in a year
         YEAR_SEC = 31556926
 
-        mysql_manager = MySQL_Manager()
+        mysql_manager = MySQL_Manager(host = HOST)
 
+        for query in CLEANUP_QUERIES:
+            mysql_manager.execute_query(query)
+        
         #time_from and time_to are lists of a tuple, [(time in seconds, 0)] like so
         time_from_seconds = mysql_manager.execute_query('select min(time_in) from packetrecords')[0][0]
         time_to_seconds = mysql_manager.execute_query('select max(time_in) from packetrecords')[0][0]
@@ -89,7 +95,7 @@ class Test_Core(unittest.TestCase):
         TEST_QUERY = TEST_QUERY2 if year_to < 2038 else TEST_QUERY1
         OTHER_TEST_QUERY = TEST_QUERY4 if year_to < 2038 else TEST_QUERY3
 
-        dashboard = Dashboard(properties=Dashboard_Properties(title="Pcap 74" ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=[Panel(title="Time_queue", targets = [Target(rawSql=TEST_QUERY)]), Panel(title="drops", targets = [Target(rawSql=OTHER_TEST_QUERY)])])
+        dashboard = Dashboard(properties=Dashboard_Properties(title="Pcap 65" ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=[Panel(title="Time_queue", targets = [Target(rawSql=TEST_QUERY)]), Panel(title="drops", targets = [Target(rawSql=OTHER_TEST_QUERY)])])
         payload = get_final_payload(dashboard)
         print(payload)
         response = requests.request("POST", url=URL, headers=headers, data = payload)
