@@ -113,7 +113,9 @@ class Test_Core(unittest.TestCase):
         self.assertTrue(is_json("{" + self.gridPos.get_json_string() + "}"))
         for panel in self.panels:
             self.assertTrue(is_json("{" + panel.get_json_string() + "}"))
+            self.assertTrue(is_json("{" + panel.xaxis.get_json_string() + "}"))
         print(self.dashboard.get_json_string())
+        
 
 if __name__ == '__main__':
     unittest.main()
