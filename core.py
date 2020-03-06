@@ -234,7 +234,10 @@ class MySQL_Manager:
             return []
         finally:
             if cursor.with_rows:
-                return cursor.fetchall()
+                fields = [row[0] for row in cursor.description]
+                resultset = cursor.fetchall()
+                resultset.insert(0, fields)
+                return resultset
 
 
 
