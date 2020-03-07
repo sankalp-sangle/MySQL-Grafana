@@ -15,6 +15,9 @@ URL             = "http://" + HOST + ":3000/api/dashboards/db"
 API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
 TIME_FROM       = "1998-04-03"
 TIME_TO         = "2020-04-03"
+HEAVY_HITTER_THRESHOLD = 0.2
+
+CLEANUP_QUERIES = ['set SQL_SAFE_UPDATES = 0', 'delete from packetrecords where time_in = 0']
 
 def Int2IP(ipnum):
     o1 = int(ipnum / pow(2,24)) % 256
@@ -26,6 +29,10 @@ def Int2IP(ipnum):
 def main():
     
     mysql_manager = MySQL_Manager()
+
+    for query in CLEANUP_QUERIES:
+        mysql_manager.execute_query(query)
+    
     mapIp = get_ip_addresses(mysql_manager)
 
     switchMap = initialize_switches(mysql_manager)
@@ -33,29 +40,34 @@ def main():
 
     for switch in switchMap:
         switchMap[switch].populate_flow_list(mysql_manager)
+        switchMap[switch].populate_ratios(mysql_manager)
         switchMap[switch].print_info(mapIp)
-        # print("Switch " + switchMap[switch].identifier + '-> ' + str( [mapIp[x] for x in switchMap[switch].flowList] ) )
-        # packetList = switchMap[switch].get_packet_count_from_switch(mysql_manager)
-        # for row in packetList:
-            # print( (mapIp[row[0]] if row[0] in mapIp else str(row[0]) ) + " - " + str(row[1]) )
-        # print("\n")
+        
 
     for flow in flowMap:
         flowMap[flow].populate_switch_list(mysql_manager)
+        flowMap[flow].populate_ratios(mysql_manager)
         flowMap[flow].print_info(mapIp)
-        # print("Flow " + mapIp[flowMap[flow].identifier] + '->' + str(flowMap[flow].switchList))
+        
 
     print(str(len(flowMap)) + " flows")
     print(str(len(switchMap)) + " switches") 
+    print("\n")
+
+    result = mysql_manager.execute_query('select switch from triggers')
+    trigger_switch = result[1:][0][0]
     
+    for flow in switchMap[trigger_switch].ratios:
+        ratio = switchMap[trigger_switch].ratios[flow]
 
-     
-    # answer = get_packet_count_from_trigger_switch_boundaries(mysql_manager)
-    # total_pkts = sum([ i[1] for i in answer[1:] ])
-    # print(total_pkts)
+        if ratio > HEAVY_HITTER_THRESHOLD:
+            heavy_hitter_flag = 1
+            if test_for_heavy_hitter(mysql_manager, flow, switchMap, flowMap):
+                print("Possible heavy hitter: " + mapIp[flow])
 
-    # for row in answer[1:]:
-    #     print( ( mapIp[row[0]] if row[0] in mapIp else str(row[0]) ) + " " + str(row[1] / total_pkts))
+    if heavy_hitter_flag is 0:
+        print("Possible synchronized incast, no heavy hitters found")
+        
 
 def initialize_switches(mysql_manager):
     print("Initializing switches...")
@@ -77,16 +89,14 @@ def initialize_flows(mysql_manager):
     
     return flowList
 
-
-
-
-# def get_avg_link_util_from_trigger_switch_boundaries(mysql_manager):
-#     HALF_WIDTH = 10000000 # 1 Micro
-
-#     trigger_time = mysql_manager.execute_query('select time_hit from triggers')[1][0]
-#     # print(str(trigger_time))
-#     answer = mysql_manager.execute_query('select source_ip, count(hash) from packetrecords where switch in (select distinct switch from triggers) and time_in between ' + str(trigger_time - HALF_WIDTH) + ' and ' + str(trigger_time + HALF_WIDTH) + ' group by switch, source_ip')
-#     return answer
+def test_for_heavy_hitter(mysql_manager, flow, switchMap, flowMap):
+    print("Testing for flow:" + str(flow))
+    for switch in flowMap[flow].ratios:
+        print("Switch:" + switch + " Ratio:" + str(flowMap[flow].ratios[switch]) )
+        if flowMap[flow].ratios[switch] < HEAVY_HITTER_THRESHOLD:
+            return False
+    
+    return True
 
 def get_ip_addresses(mysql_manager):
     print("Generating IP map...")

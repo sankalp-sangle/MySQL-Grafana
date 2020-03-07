@@ -247,6 +247,7 @@ class Switch:
         
         self.identifier = identifier
         self.flowList = []
+        self.ratios = {}
 
     def populate_flow_list(self, my_sql_manager):
         if my_sql_manager is not None:
@@ -254,6 +255,13 @@ class Switch:
             for row in result[1:]:
                 self.flowList.append(row[0])
 
+    def populate_ratios(self, mysql_manager):
+        if mysql_manager is not None:
+            result = mysql_manager.execute_query('select source_ip, count(hash) from packetrecords where switch =\'' + self.identifier + '\' group by source_ip')
+            total_pkts = sum([row[1] for row in result[1:]])
+            
+            for row in result[1:]:
+                self.ratios[row[0]] = row[1]/total_pkts
 
     def get_packet_count_from_switch(self, mysql_manager):
         answer = mysql_manager.execute_query('select source_ip, count(hash) from packetrecords where switch=\'' + self.identifier + '\'' + ' group by switch, source_ip')
@@ -273,7 +281,9 @@ class Switch:
         print("Flows passed:", end="")
         for flow in self.flowList:
             print(mapIp[flow] if flow in mapIp else flow, end=" ")
-
+        print("\nRatios:")
+        for flow in self.ratios:
+            print("Flow " + mapIp[flow] + ": " + str(self.ratios[flow]))
         print("\n")
 
 class Flow:
@@ -284,6 +294,7 @@ class Flow:
         
         self.identifier = identifier
         self.switchList = []
+        self.ratios = {}
     
     def populate_switch_list(self, mysql_manager):
         if mysql_manager is not None:
@@ -291,12 +302,25 @@ class Flow:
             for row in result[1:]:
                 self.switchList.append(row[0])
     
+    def populate_ratios(self, mysql_manager):
+        if mysql_manager is not None:
+            for switch in self.switchList:
+                result = mysql_manager.execute_query('select count(hash) from packetrecords where switch =\'' + switch + '\'')
+                total_pkts = result[1][0]
+                
+                result = mysql_manager.execute_query('select count(hash) from packetrecords where switch =\'' + switch + '\'' + 'and source_ip = ' + str(self.identifier))
+                self.ratios[switch] = result[1][0] / total_pkts
+
     def print_info(self, mapIp):
         print("Flow Identifier:" + ( str( mapIp[self.identifier] if self.identifier in mapIp else self.identifier ) ))
 
         print("Switches encountered:", end="")
         for switch in self.switchList:
             print(switch, end=" ")
+        
+        print("\nRatios:")
+        for switch in self.ratios:
+            print("Switch " + switch + ": " + str(self.ratios[switch]))
 
         print("\n")
 
