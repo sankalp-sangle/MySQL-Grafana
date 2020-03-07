@@ -239,6 +239,67 @@ class MySQL_Manager:
                 resultset.insert(0, fields)
                 return resultset
 
+class Switch:
+
+    def __init__(self, identifier = None):
+        if identifier is None:
+            identifier = 'No switch identifier'
+        
+        self.identifier = identifier
+        self.flowList = []
+
+    def populate_flow_list(self, my_sql_manager):
+        if my_sql_manager is not None:
+            result = my_sql_manager.execute_query('select distinct source_ip from packetrecords where switch = \'' + self.identifier + '\'')
+            for row in result[1:]:
+                self.flowList.append(row[0])
+
+
+    def get_packet_count_from_switch(self, mysql_manager):
+        answer = mysql_manager.execute_query('select source_ip, count(hash) from packetrecords where switch=\'' + self.identifier + '\'' + ' group by switch, source_ip')
+        return answer[1:]
+    
+    def get_packet_count_from_switch_boundaries(self, mysql_manager):
+        HALF_WIDTH = 10000000 # 1 Micro
+
+        trigger_time = mysql_manager.execute_query('select time_hit from triggers')[1][0]
+        # print(str(trigger_time))
+        answer = mysql_manager.execute_query('select source_ip, count(hash) from packetrecords where switch in (select distinct switch from triggers) and time_in between ' + str(trigger_time - HALF_WIDTH) + ' and ' + str(trigger_time + HALF_WIDTH) + ' group by switch, source_ip')
+        return answer
+
+    def print_info(self, mapIp):
+        print("Switch Identifier: S" + str(self.identifier))
+
+        print("Flows passed:", end="")
+        for flow in self.flowList:
+            print(mapIp[flow] if flow in mapIp else flow, end=" ")
+
+        print("\n")
+
+class Flow:
+    
+    def __init__(self, identifier = None):
+        if identifier is None:
+            identifier = 0
+        
+        self.identifier = identifier
+        self.switchList = []
+    
+    def populate_switch_list(self, mysql_manager):
+        if mysql_manager is not None:
+            result = mysql_manager.execute_query('select distinct switch from packetrecords where source_ip = ' + str(self.identifier))
+            for row in result[1:]:
+                self.switchList.append(row[0])
+    
+    def print_info(self, mapIp):
+        print("Flow Identifier:" + ( str( mapIp[self.identifier] if self.identifier in mapIp else self.identifier ) ))
+
+        print("Switches encountered:", end="")
+        for switch in self.switchList:
+            print(switch, end=" ")
+
+        print("\n")
+
 
 
         
