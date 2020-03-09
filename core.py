@@ -324,6 +324,59 @@ class Flow:
 
         print("\n")
 
+class QueryBuilder:
+
+    def __init__(self, value = None, metricList = None, isAggregate = None, aggregateFunc = None, isConditional = None, conditionalClauseList = None):
+        if value is None:
+            raise Error
+        if metricList is None:
+            raise Error
+        if aggregateFunc is None:
+            aggregateFunc = ""
+            isAggregate = False
+        if conditionalClauseList is None:
+            conditionalClauseList = []
+            isConditional = False
+        
+        self.value = value
+        self.metricList = metricList
+        self.isAggregate = isAggregate
+        self.aggregateFunc = aggregateFunc
+        self.isConditional = isConditional
+        self.conditionalClauseList = conditionalClauseList
+        
+    def get_formatted_time(self, year):
+        return "{}-{}-{}".format(year, "01", "01")
+
+    def get_generic_query(self):
+        whereComponent = ""
+        valueComponent = ""
+        groupByComponent = ""
+        metricComponent = ""
+
+        if self.isConditional:
+            whereComponent = "where "
+            for clause in self.conditionalClauseList:
+                whereComponent += (clause + " AND ")
+            whereComponent = whereComponent[:-5] # Remove final AND
+
+        if self.isAggregate:
+            valueComponent = self.aggregateFunc + "(" + self.value + ")"
+            groupByComponent = "group by 1,2"
+        else:
+            valueComponent = self.value
+
+        metricComponent = "concat("
+        for metric in self.metricList:
+            metricComponent += '\'' + metric + ':\', ' + metric + ","
+        metricComponent = metricComponent[:-1] #Remove the last comma
+        metricComponent += ")"
+        
+        return "select time_in as \'time\', {} as metric, {} FROM packetrecords {} {} ORDER BY time_in".format(metricComponent, valueComponent, whereComponent, groupByComponent)
+
+if __name__ == "__main__":
+    qb = QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isAggregate=True, aggregateFunc='avg', isConditional = True, conditionalClauseList=['time_in != 0', 'switch = \'7\''])
+    print(qb.get_generic_query())
 
 
         
