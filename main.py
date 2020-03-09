@@ -20,7 +20,7 @@ HEAVY_HITTER_THRESHOLD = 0.2
 YEAR_SEC = 31556926
 UNIX_TIME_START_YEAR = 1970
 
-DASHBOARD_TITLE = "Packet Capture Microburst HH 2"
+DASHBOARD_TITLE = "Packet Capture Microburst HH 3"
 VALUE_LIST = ['link_utilization','queue_depth']
 
 
@@ -88,7 +88,52 @@ def main():
     if heavy_hitter_flag is 0:
         print("Possible synchronized incast, no heavy hitters found")
 
+    #Testing for synchronized incast
+    result_set = mysql_manager.execute_query('select max(queue_depth) from packetrecords')
+    peakDepth = result_set[1][0]
+    print("\nDepth: " + str(peakDepth))
 
+    result_set = mysql_manager.execute_query('select time_in from packetrecords where queue_depth = ' + str(peakDepth))
+    peakTime = result_set[1][0]
+    print("\nTime of peak: " + str(peakTime))
+
+    #Find left and right
+    result_set = mysql_manager.execute_query('select time_in, queue_depth from packetrecords where switch = \'' + trigger_switch + '\' order by time_in')
+    # print(result_set)
+
+    peakIndex = result_set.index( (peakTime, peakDepth) )
+    print("Index -> " + str(peakIndex))
+
+    lIndex = peakIndex - 1
+    rIndex = peakIndex + 1
+
+    while lIndex >= 0 and result_set[lIndex][1] > 0.5 * peakDepth:
+        lIndex = lIndex - 1
+
+    while rIndex < len(result_set) and result_set[rIndex][1] > 0.5 * peakDepth:
+        rIndex = rIndex + 1
+
+    rIndex = (rIndex - 1) if rIndex == len(result_set) else rIndex
+    lIndex = (lIndex + 1) if lIndex == 0 else lIndex
+
+    print(str(lIndex) + "|||" + str(rIndex))
+
+    timeDiff = result_set[rIndex][0] - result_set[lIndex][0]
+
+    lTime = result_set[lIndex][0]
+    rTime = result_set[rIndex][0]
+
+    print("\nTime difference: " + str(timeDiff))
+
+    estimatedWidth = timeDiff
+
+    result_set = mysql_manager.execute_query("select time_in div " + str(estimatedWidth) + "*" + str(estimatedWidth) + ", concat(\'switch:\', switch) as metric, avg(queue_depth) from packetrecords group by 1,2  having avg(queue_depth) > 0.40 *" + str(peakDepth)+" order by time_in div " + str(estimatedWidth) + "*" + str(estimatedWidth))
+    print(result_set)
+
+    if len(result_set) > 3:
+        print("It could be a case of Synchronized Incast")
+    else:
+        print("It is NOT a case of Synchronized Incast")
 
     #Dashboard creation
 
@@ -149,6 +194,20 @@ def main():
     response = requests.request("POST", url=ANNOTATIONS_URL, headers=headers, data = annotations_payload)
     json_response = str(response.text.encode('utf8'))
     print("\nResponse:\n" + json_response)
+
+    annotations_payload = "{ \"time\":" + str(lTime) + "000" + ", \"text\":\"Left Width\", \"dashboardId\":" + str(dashboardId) + "}"
+    print("\nLeft Width Payload:\n" + annotations_payload)
+    response = requests.request("POST", url=ANNOTATIONS_URL, headers=headers, data = annotations_payload)
+    json_response = str(response.text.encode('utf8'))
+    print("\nResponse:\n" + json_response)
+
+    annotations_payload = "{ \"time\":" + str(rTime) + "000" + ", \"text\":\"Right Width\", \"dashboardId\":" + str(dashboardId) + "}"
+    print("\nRight Width Payload:\n" + annotations_payload)
+    response = requests.request("POST", url=ANNOTATIONS_URL, headers=headers, data = annotations_payload)
+    json_response = str(response.text.encode('utf8'))
+    print("\nResponse:\n" + json_response)
+
+
 
 
 def initialize_switches(mysql_manager):
