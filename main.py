@@ -200,33 +200,3 @@ def get_final_payload(dashboard):
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# POST /api/annotations HTTP/1.1
-# Accept: application/json
-# Content-Type: application/json
-
-# {
-#   "dashboardId":468,
-#   "panelId":1,
-#   "time":1507037197339,
-#   "timeEnd":1507180805056,
-#   "tags":["tag1","tag2"],
-#   "text":"Annotation Description"
-# }
-
-
-

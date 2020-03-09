@@ -30,6 +30,18 @@ class Dashboard:
         return panelJSON
 
 class Dashboard_Properties:
+    ANNOTATION_JSON = '''\"annotations\": {
+        \"list\": [
+        {
+            \"builtIn\": 1,
+            \"datasource\": \"-- Grafana --\",
+            \"enable\": true,
+            \"hide\": true,
+            \"iconColor\": "rgba(255, 255, 0, 1)\",
+            \"type\": "dashboard\"
+        }
+        ]
+    }'''
     def __init__(self, id = None, uid = None, title = None, timezone = None, schemaVersion = None, version = None, time = None):
         if id is None:
             id = "null"
@@ -56,7 +68,7 @@ class Dashboard_Properties:
         self.time = time
 
     def get_json_string(self):
-        return "\"id\": {},\"uid\": {},\"title\": \"{}\",\"timezone\": \"{}\",\"schemaVersion\": {},\"version\": {},\"time\":{}".format(self.id, self.uid, self.title, self.timezone, self.schemaVersion, self.version, "{" + self.time.get_json_string() + "}")
+        return "{}, \"id\": {},\"uid\": {},\"title\": \"{}\",\"timezone\": \"{}\",\"schemaVersion\": {},\"version\": {},\"time\":{}".format(Dashboard_Properties.ANNOTATION_JSON, self.id, self.uid, self.title, self.timezone, self.schemaVersion, self.version, "{" + self.time.get_json_string() + "}")
 
 class Grid_Position:
     
@@ -368,8 +380,8 @@ class QueryBuilder:
 
         metricComponent = "concat("
         for metric in self.metricList:
-            metricComponent += '\'' + metric + ':\', ' + metric + ","
-        metricComponent = metricComponent[:-1] #Remove the last comma
+            metricComponent += '\'' + metric + ':\', ' + metric + "," + "\' \'" + ","
+        metricComponent = metricComponent[:-5] #Remove the last comma and space
         metricComponent += ")"
         
         return "select time_in as \'time\', {} as metric, {} FROM packetrecords {} {} ORDER BY time_in".format(metricComponent, valueComponent, whereComponent, groupByComponent)
