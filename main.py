@@ -57,12 +57,13 @@ def main():
     result = mysql_manager.execute_query('select switch from triggers')
     trigger_switch = result[1:][0][0]
     
+    heavy_hitter_flag = 0
     for flow in switchMap[trigger_switch].ratios:
         ratio = switchMap[trigger_switch].ratios[flow]
 
         if ratio > HEAVY_HITTER_THRESHOLD:
             heavy_hitter_flag = 1
-            if test_for_heavy_hitter(mysql_manager, flow, switchMap, flowMap):
+            if test_for_heavy_hitter(mysql_manager, flow, switchMap, flowMap, mapIp):
                 print("Possible heavy hitter: " + mapIp[flow])
 
     if heavy_hitter_flag is 0:
@@ -89,8 +90,8 @@ def initialize_flows(mysql_manager):
     
     return flowList
 
-def test_for_heavy_hitter(mysql_manager, flow, switchMap, flowMap):
-    print("Testing for flow:" + str(flow))
+def test_for_heavy_hitter(mysql_manager, flow, switchMap, flowMap, mapIp):
+    print("Testing for flow:" + mapIp[flow])
     for switch in flowMap[flow].ratios:
         print("Switch:" + switch + " Ratio:" + str(flowMap[flow].ratios[switch]) )
         if flowMap[flow].ratios[switch] < HEAVY_HITTER_THRESHOLD:
