@@ -14,13 +14,13 @@ from core import QueryBuilder
 HOST            = "localhost"
 URL             = "http://" + HOST + ":3000/api/dashboards/db"
 ANNOTATIONS_URL = "http://" + HOST + ":3000/api/annotations"
-API_KEY         = "eyJrIjoia3J0T3JpcHl6U3d6Nzg0NU1zaFFhdE0zUW1CaVNSb04iLCJuIjoibXlrZXkiLCJpZCI6MX0="
+API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
 
 HEAVY_HITTER_THRESHOLD = 0.2
 YEAR_SEC = 31556926
 UNIX_TIME_START_YEAR = 1970
 
-DASHBOARD_TITLE = "Packet Capture Microburst Heavy Hitter 4"
+DASHBOARD_TITLE = "Packet Capture Microburst HH 2"
 VALUE_LIST = ['link_utilization','queue_depth']
 
 
@@ -91,6 +91,13 @@ def main():
 
 
     #Dashboard creation
+
+    #delete all existing annotations
+    response = requests.request("GET", url=ANNOTATIONS_URL, headers=headers)
+    annotations = response.json()
+    for annotation in annotations:
+        annotationId = annotation['id']
+        response = requests.request("DELETE", url=ANNOTATIONS_URL + "/" + str(annotationId), headers=headers)
 
     #time_from and time_to are lists of a tuple, [(time in seconds, 0)] like so
     time_from_seconds = mysql_manager.execute_query('select min(time_in) from packetrecords')[1][0]
