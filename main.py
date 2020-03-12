@@ -1,5 +1,7 @@
 import requests
+import sys
 
+from core import Datasource
 from core import Dashboard_Properties
 from core import Time
 from core import Dashboard
@@ -11,15 +13,17 @@ from core import Switch
 from core import Flow
 from core import QueryBuilder
 
+
 HOST            = "localhost"
 URL             = "http://" + HOST + ":3000/api/dashboards/db"
 ANNOTATIONS_URL = "http://" + HOST + ":3000/api/annotations"
+DATASOURCE_URL  = "http://" + HOST + ":3000/api/datasources"
 API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
 
 YEAR_SEC = 31556926
 UNIX_TIME_START_YEAR = 1970
 
-DASHBOARD_TITLE = "Packet Capture Microburst HH 1"
+DASHBOARD_TITLE = str(sys.argv[1])
 VALUE_LIST = ['link_utilization','queue_depth']
 
 
@@ -40,7 +44,9 @@ def Int2IP(ipnum):
 
 def main():
     
-    mysql_manager = MySQL_Manager()
+    scenario = str(sys.argv[1])
+
+    mysql_manager = MySQL_Manager(database=scenario)
 
     for query in CLEANUP_QUERIES:
         mysql_manager.execute_query(query)
@@ -68,25 +74,6 @@ def main():
     result = mysql_manager.execute_query('select switch from triggers')
     trigger_switch = result[1:][0][0]
     
-
-    # heavy_hitters = []
-
-    # heavy_hitter_flag = 0
-    # for flow in switchMap[trigger_switch].ratios:
-        # ratio = switchMap[trigger_switch].ratios[flow]
-
-        # if ratio > HEAVY_HITTER_THRESHOLD:
-            # heavy_hitter_flag = 1
-            # if test_for_heavy_hitter(mysql_manager, flow, switchMap, flowMap, mapIp):
-                # print("Possible heavy hitter: " + mapIp[flow])
-                # heavy_hitters.append(flow)
-
-    # print(heavy_hitters)
-
-    # if heavy_hitter_flag is 0:
-    #     print("Possible synchronized incast, no heavy hitters found")
-
-    #Testing for synchronized incast
     result_set = mysql_manager.execute_query('select max(queue_depth) from packetrecords')
     peakDepth = result_set[1][0]
     print("Peak Depth: " + str(peakDepth))
@@ -106,7 +93,7 @@ def main():
     lIndex = peakIndex - 1
     rIndex = peakIndex + 1
 
-    while lIndex >= 0 and result_set[lIndex][2] > 0.25 * peakDepth:
+    while lIndex >= 0 and result_set[lIndex][2] > 0.5 * peakDepth:
         lIndex = lIndex - 1
 
     while rIndex < len(result_set) and result_set[rIndex][2] > 0.5 * peakDepth:
@@ -151,6 +138,10 @@ def main():
 
     print("\n******************* END *******************\n")
 
+    data_source = Datasource(name=scenario, database_type="mysql", database=scenario, user="sankalp")
+    json_body = "{ " + data_source.get_json_string() + " }"
+    response = requests.request("POST", url=DATASOURCE_URL, headers=headers, data = json_body)
+    # print(response.json())
 
     #delete all existing annotations
     response = requests.request("GET", url=ANNOTATIONS_URL, headers=headers)
@@ -178,16 +169,9 @@ def main():
     panelList = []
 
     #append Default Queries
-    panelList.append(Panel(title="Default Panel: Link Utilization", targets = [Target(rawSql=QueryBuilder(value = 'link_utilization', metricList = ['switch', 'source_ip']).get_generic_query())]))
-    panelList.append(Panel(title="Default Panel: Queue Depth", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())]))
-    panelList.append(Panel(title="Queue depth at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'', 'time_in between ' + str(lTime) + ' AND ' + str(rTime)]).get_generic_query())], lines = False, points = True))
-    
-    # for flow in heavy_hitters:
-    #     for value in VALUE_LIST:
-    #         qb = QueryBuilder(value = value, metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['source_ip = ' + str(flow)])
-    #         panel = Panel(title=value +"(" + mapIp[flow] + ")", targets=[Target(rawSql=qb.get_generic_query())])
-    #         # print(qb.get_generic_query())
-    #         panelList.append(panel)
+    panelList.append(Panel(title="Default Panel: Link Utilization", targets = [Target(rawSql=QueryBuilder(value = 'link_utilization', metricList = ['switch', 'source_ip']).get_generic_query())], datasource=scenario))
+    panelList.append(Panel(title="Default Panel: Queue Depth", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario))
+    panelList.append(Panel(title="Queue depth at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'', 'time_in between ' + str(lTime) + ' AND ' + str(rTime)]).get_generic_query())], datasource=scenario, lines = False, points = True))
 
     dashboard = Dashboard(properties=Dashboard_Properties(title=DASHBOARD_TITLE ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=panelList)
     

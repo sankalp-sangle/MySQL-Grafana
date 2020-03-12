@@ -1,6 +1,36 @@
 import mysql.connector
 from mysql.connector import Error
 
+class Datasource:
+    DEFAULT_NAME = "No name given"
+    DEFAULT_TYPE = "mysql"
+    DEFAULT_DATABASE = "No name given to database"
+    DEFAULT_USER = "sankalp"
+    DEFAULT_PASSWORD = "sankalp"
+        
+    def __init__(self, name = None, database_type = None, database = None, user = None, password = None):
+        if name is None:
+            name = Datasource.DEFAULT_NAME
+        if database_type is None:
+            database_type = Datasource.DEFAULT_TYPE
+        if database is None:
+            database = Datasource.DEFAULT_DATABASE
+        if user is None:
+            user = Datasource.DEFAULT_USER
+        if password is None:
+            password = Datasource.DEFAULT_PASSWORD
+
+        self.name = name
+        self.database_type = database_type
+        self.database = database
+        self.user = user
+        self.password = password
+
+    def get_json_string(self):
+        return "\"name\": \"{}\", \"type\": \"{}\", \"url\":\"\", \"access\":\"proxy\", \"database\":\"{}\",\"user\":\"{}\", \"password\": \"{}\", \"basicAuth\":false".format(self.name, self.database_type, self.database, self.user, self.password)
+        
+
+        
 class Dashboard:
     def __init__(self, panels = None, properties = None):
         if properties is None:
@@ -72,8 +102,8 @@ class Dashboard_Properties:
 
 class Grid_Position:
     
-    DEFAULT_HEIGHT = 12
-    DEFAULT_WIDTH = 18
+    DEFAULT_HEIGHT = 18
+    DEFAULT_WIDTH = 27
 
     def __init__(self, x = None, y = None, height = None, width = None):
         if x is None:
@@ -393,8 +423,8 @@ class QueryBuilder:
         return "select time_in as \'time\', {} as metric, {} FROM packetrecords {} {} ORDER BY time_in".format(metricComponent, valueComponent, whereComponent, groupByComponent)
 
 if __name__ == "__main__":
-    qb = QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isAggregate=True, aggregateFunc='avg', isConditional = True, conditionalClauseList=['time_in != 0', 'switch = \'7\''])
-    print(qb.get_generic_query())
+    dsource = Datasource(name="My Datasource", database_type="mysql", database="microburst_incast_sync1", user="sankalp")
+    print(dsource.get_json_string())
 
 
         
