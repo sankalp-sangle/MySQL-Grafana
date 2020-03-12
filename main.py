@@ -16,11 +16,10 @@ URL             = "http://" + HOST + ":3000/api/dashboards/db"
 ANNOTATIONS_URL = "http://" + HOST + ":3000/api/annotations"
 API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
 
-HEAVY_HITTER_THRESHOLD = 0.2
 YEAR_SEC = 31556926
 UNIX_TIME_START_YEAR = 1970
 
-DASHBOARD_TITLE = "Packet Capture Microburst HH 3"
+DASHBOARD_TITLE = "Packet Capture Microburst HH 1"
 VALUE_LIST = ['link_utilization','queue_depth']
 
 
@@ -65,77 +64,93 @@ def main():
 
     print(str(len(flowMap)) + " flows")
     print(str(len(switchMap)) + " switches") 
-    print("\n")
 
     result = mysql_manager.execute_query('select switch from triggers')
     trigger_switch = result[1:][0][0]
     
 
-    heavy_hitters = []
+    # heavy_hitters = []
 
-    heavy_hitter_flag = 0
-    for flow in switchMap[trigger_switch].ratios:
-        ratio = switchMap[trigger_switch].ratios[flow]
+    # heavy_hitter_flag = 0
+    # for flow in switchMap[trigger_switch].ratios:
+        # ratio = switchMap[trigger_switch].ratios[flow]
 
-        if ratio > HEAVY_HITTER_THRESHOLD:
-            heavy_hitter_flag = 1
-            if test_for_heavy_hitter(mysql_manager, flow, switchMap, flowMap, mapIp):
-                print("Possible heavy hitter: " + mapIp[flow])
-                heavy_hitters.append(flow)
+        # if ratio > HEAVY_HITTER_THRESHOLD:
+            # heavy_hitter_flag = 1
+            # if test_for_heavy_hitter(mysql_manager, flow, switchMap, flowMap, mapIp):
+                # print("Possible heavy hitter: " + mapIp[flow])
+                # heavy_hitters.append(flow)
 
-    print(heavy_hitters)
+    # print(heavy_hitters)
 
-    if heavy_hitter_flag is 0:
-        print("Possible synchronized incast, no heavy hitters found")
+    # if heavy_hitter_flag is 0:
+    #     print("Possible synchronized incast, no heavy hitters found")
 
     #Testing for synchronized incast
     result_set = mysql_manager.execute_query('select max(queue_depth) from packetrecords')
     peakDepth = result_set[1][0]
-    print("\nDepth: " + str(peakDepth))
+    print("Peak Depth: " + str(peakDepth))
 
-    result_set = mysql_manager.execute_query('select time_in from packetrecords where queue_depth = ' + str(peakDepth))
-    peakTime = result_set[1][0]
-    print("\nTime of peak: " + str(peakTime))
+    result_set = mysql_manager.execute_query('select time_in, time_out, queue_depth from packetrecords where queue_depth = ' + str(peakDepth))
+    peakTimeIn = result_set[1][0]
+    peakTimeOut = result_set[1][1]
+    print("\nTime of peak depth: " + str(peakTimeOut))
 
     #Find left and right
-    result_set = mysql_manager.execute_query('select time_in, queue_depth from packetrecords where switch = \'' + trigger_switch + '\' order by time_in')
+    result_set = mysql_manager.execute_query('select time_in, time_out, queue_depth from packetrecords where switch = \'' + trigger_switch + '\' order by time_out')
     # print(result_set)
 
-    peakIndex = result_set.index( (peakTime, peakDepth) )
-    print("Index -> " + str(peakIndex))
+    peakIndex = result_set.index( (peakTimeIn, peakTimeOut, peakDepth) )
+    # print("Index -> " + str(peakIndex))
 
     lIndex = peakIndex - 1
     rIndex = peakIndex + 1
 
-    while lIndex >= 0 and result_set[lIndex][1] > 0.5 * peakDepth:
+    while lIndex >= 0 and result_set[lIndex][2] > 0.25 * peakDepth:
         lIndex = lIndex - 1
 
-    while rIndex < len(result_set) and result_set[rIndex][1] > 0.5 * peakDepth:
+    while rIndex < len(result_set) and result_set[rIndex][2] > 0.5 * peakDepth:
         rIndex = rIndex + 1
 
     rIndex = (rIndex - 1) if rIndex == len(result_set) else rIndex
     lIndex = (lIndex + 1) if lIndex == 0 else lIndex
 
-    print(str(lIndex) + "|||" + str(rIndex))
-
-    timeDiff = result_set[rIndex][0] - result_set[lIndex][0]
+    # print(str(lIndex) + "|||" + str(rIndex))
 
     lTime = result_set[lIndex][0]
-    rTime = result_set[rIndex][0]
+    rTime = result_set[rIndex][1]
 
-    print("\nTime difference: " + str(timeDiff))
+    timeDiff = rTime - lTime
 
-    estimatedWidth = timeDiff
+    print("\nLeft time: {} Right time: {} Time difference: {} microseconds".format(str(lTime), str(rTime), str(timeDiff/1000)))
 
-    result_set = mysql_manager.execute_query("select time_in div " + str(estimatedWidth) + "*" + str(estimatedWidth) + ", concat(\'switch:\', switch) as metric, avg(queue_depth) from packetrecords group by 1,2  having avg(queue_depth) > 0.40 *" + str(peakDepth)+" order by time_in div " + str(estimatedWidth) + "*" + str(estimatedWidth))
-    print(result_set)
-
-    if len(result_set) > 3:
-        print("It could be a case of Synchronized Incast")
+    if timeDiff > 1000000:
+        print("\nCONCLUDE: Time Gap is of the order of milliseconds. Probably underprovisioned network.")
     else:
-        print("It is NOT a case of Synchronized Incast")
+        result_set = mysql_manager.execute_query("select source_ip, count(hash) from packetrecords where switch = \'" + trigger_switch + "\' and time_in between " + str(lTime) + " and " + str(rTime) + " group by 1")
+        
+        data_points = []
 
-    #Dashboard creation
+        print("\nData points within the band:")
+        for row in result_set[1:]:
+            print("Flow:" + mapIp[row[0]] + " Count: " + str(row[1]))
+            data_points.append(row[1])
+        
+        # Jain Fairness Index calculation
+        # print(data_points)
+        J_index = calculate_jain_index(data_points)
+
+        n = len(data_points)
+        print("\nTotal data points: " + str(sum(data_points)))
+        
+        print("\nJ Index : " + str(J_index)) 
+        normalizedJIndex = (J_index - 1.0/n) / (1 - 1.0/n)
+        print("Normalized J Index : " + str(normalizedJIndex))
+
+        printConclusion(normalizedJIndex)        
+
+    print("\n******************* END *******************\n")
+
 
     #delete all existing annotations
     response = requests.request("GET", url=ANNOTATIONS_URL, headers=headers)
@@ -157,29 +172,30 @@ def main():
     time_from = get_formatted_time(year_from)
     time_to = get_formatted_time(year_to)
 
-    print(time_from, "\n", time_to)
+    # print(time_from, "\n", time_to)
 
     #create Panel list
     panelList = []
 
     #append Default Queries
     panelList.append(Panel(title="Default Panel: Link Utilization", targets = [Target(rawSql=QueryBuilder(value = 'link_utilization', metricList = ['switch', 'source_ip']).get_generic_query())]))
-    panelList.append(Panel(title="Default Panel: Queue Depth", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip']).get_generic_query())]))
+    panelList.append(Panel(title="Default Panel: Queue Depth", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())]))
+    panelList.append(Panel(title="Queue depth at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'', 'time_in between ' + str(lTime) + ' AND ' + str(rTime)]).get_generic_query())], lines = False, points = True))
     
-    for flow in heavy_hitters:
-        for value in VALUE_LIST:
-            qb = QueryBuilder(value = value, metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['source_ip = ' + str(flow)])
-            panel = Panel(title=value +"(" + mapIp[flow] + ")", targets=[Target(rawSql=qb.get_generic_query())])
-            # print(qb.get_generic_query())
-            panelList.append(panel)
+    # for flow in heavy_hitters:
+    #     for value in VALUE_LIST:
+    #         qb = QueryBuilder(value = value, metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['source_ip = ' + str(flow)])
+    #         panel = Panel(title=value +"(" + mapIp[flow] + ")", targets=[Target(rawSql=qb.get_generic_query())])
+    #         # print(qb.get_generic_query())
+    #         panelList.append(panel)
 
     dashboard = Dashboard(properties=Dashboard_Properties(title=DASHBOARD_TITLE ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=panelList)
     
     payload = get_final_payload(dashboard)
-    print("\nPayload:\n" + payload)
+    # print("\nPayload:\n" + payload)
     response = requests.request("POST", url=URL, headers=headers, data = payload)
     json_response = str(response.text.encode('utf8'))
-    print("\nResponse:\n" + json_response)
+    # print("\nResponse:\n" + json_response)
     
     dashboardId = response.json()['id']
     # print("Dashboard Id:" + str(dashboardId))
@@ -187,25 +203,47 @@ def main():
     #Post annotations
 
     trigger_time = mysql_manager.execute_query('select time_hit from triggers')[1][0]
-    print(trigger_time)
+    # print(trigger_time)
 
     annotations_payload = "{ \"time\":" + str(trigger_time) + "000" + ", \"text\":\"Trigger Hit!\", \"dashboardId\":" + str(dashboardId) + "}"
-    print("\nAnnotations Payload:\n" + annotations_payload)
+    # print("\nAnnotations Payload:\n" + annotations_payload)
     response = requests.request("POST", url=ANNOTATIONS_URL, headers=headers, data = annotations_payload)
     json_response = str(response.text.encode('utf8'))
-    print("\nResponse:\n" + json_response)
+    # print("\nResponse:\n" + json_response)
 
     annotations_payload = "{ \"time\":" + str(lTime) + "000" + ", \"text\":\"Left Width\", \"dashboardId\":" + str(dashboardId) + "}"
-    print("\nLeft Width Payload:\n" + annotations_payload)
+    # print("\nLeft Width Payload:\n" + annotations_payload)
     response = requests.request("POST", url=ANNOTATIONS_URL, headers=headers, data = annotations_payload)
     json_response = str(response.text.encode('utf8'))
-    print("\nResponse:\n" + json_response)
+    # print("\nResponse:\n" + json_response)
 
     annotations_payload = "{ \"time\":" + str(rTime) + "000" + ", \"text\":\"Right Width\", \"dashboardId\":" + str(dashboardId) + "}"
-    print("\nRight Width Payload:\n" + annotations_payload)
+    # print("\nRight Width Payload:\n" + annotations_payload)
     response = requests.request("POST", url=ANNOTATIONS_URL, headers=headers, data = annotations_payload)
     json_response = str(response.text.encode('utf8'))
-    print("\nResponse:\n" + json_response)
+
+def printConclusion(normalizedJIndex):
+    if normalizedJIndex > 0.7:
+        print("\nCONCLUDE: It is probably a case of synchronized incast")
+    elif normalizedJIndex < 0.45:
+        print("\nCONCLUDE: It is probably a case of a dominant heavy hitter")
+    else:
+        print("\nCONCLUDE: Doesn't fall in either category")        
+
+def calculate_jain_index(data_points):
+
+    n = len(data_points)
+    numerator = 0
+    denominator = 0
+
+    summation = sum(data_points)
+    numerator = summation ** 2
+
+    denominator = n *  sum( [x ** 2 for x in data_points] )
+
+    J_index = numerator * 1.0 / denominator
+    return J_index
+    # print("\nResponse:\n" + json_response)
 
 
 

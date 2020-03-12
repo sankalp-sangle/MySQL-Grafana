@@ -100,7 +100,7 @@ class Panel:
     DEFAULT_TITLE = "This is a sample panel title!"
     DEFAULT_PANEL_TYPE = "graph"
 
-    def __init__(self, datasource = None, id = None, title = None, panelType = None, gridPos = None, targets = None, xaxis = None):
+    def __init__(self, datasource = None, id = None, title = None, panelType = None, gridPos = None, targets = None, xaxis = None, lines = None, points = None):
         if datasource is None:
             datasource = Panel.DEFAULT_DATASOURCE
         if id is None:
@@ -116,6 +116,10 @@ class Panel:
             targets = [Target()]
         if xaxis is None:
             xaxis = Xaxis()
+        if lines is None:
+            lines = True
+        if points is None:
+            points = False
 
         self.datasource = datasource
         self.id = id
@@ -124,6 +128,8 @@ class Panel:
         self.gridPos = gridPos
         self.targets = targets
         self.xaxis = xaxis
+        self.lines = lines
+        self.points = points
 
     def get_collective_targets_json(self):
         if self.targets is []:
@@ -140,7 +146,7 @@ class Panel:
 
     def get_json_string(self):
         targetJSON = self.get_collective_targets_json()
-        return "\"datasource\": \"{}\",\"id\": {},\"title\": \"{}\",\"type\":\"{}\",\"gridPos\":{}, \"targets\": [{}], \"xaxis\": {}".format(self.datasource, self.id, self.title, self.panelType, "{" + self.gridPos.get_json_string() + "}", targetJSON, "{" + self.xaxis.get_json_string() + "}")
+        return "\"datasource\": \"{}\",\"id\": {},\"title\": \"{}\",\"type\":\"{}\",\"gridPos\":{}, \"targets\": [{}], \"xaxis\": {}, \"lines\": {}, \"points\": {}".format(self.datasource, self.id, self.title, self.panelType, "{" + self.gridPos.get_json_string() + "}", targetJSON, "{" + self.xaxis.get_json_string() + "}", "true" if self.lines else "false", "true" if self.points else "false")
 
 class Xaxis:
     def __init__(self, showAxis = None):
