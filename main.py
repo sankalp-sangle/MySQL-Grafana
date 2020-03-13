@@ -22,6 +22,9 @@ API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoib
 
 YEAR_SEC = 31556926
 UNIX_TIME_START_YEAR = 1970
+MAX_WIDTH = 1000000 # Nanoseconds
+LEFT_THRESHOLD = 0.5
+RIGHT_THRESHOLD = 0.5
 
 DASHBOARD_TITLE = str(sys.argv[1])
 VALUE_LIST = ['link_utilization','queue_depth']
@@ -93,10 +96,10 @@ def main():
     lIndex = peakIndex - 1
     rIndex = peakIndex + 1
 
-    while lIndex >= 0 and result_set[lIndex][2] > 0.5 * peakDepth:
+    while lIndex >= 0 and result_set[lIndex][2] > LEFT_THRESHOLD * peakDepth:
         lIndex = lIndex - 1
 
-    while rIndex < len(result_set) and result_set[rIndex][2] > 0.5 * peakDepth:
+    while rIndex < len(result_set) and result_set[rIndex][2] > RIGHT_THRESHOLD * peakDepth:
         rIndex = rIndex + 1
 
     rIndex = (rIndex - 1) if rIndex == len(result_set) else rIndex
@@ -111,7 +114,7 @@ def main():
 
     print("\nLeft time: {} Right time: {} Time difference: {} microseconds".format(str(lTime), str(rTime), str(timeDiff/1000)))
 
-    if timeDiff > 1000000:
+    if timeDiff > MAX_WIDTH:
         print("\nCONCLUDE: Time Gap is of the order of milliseconds. Probably underprovisioned network.")
     else:
         result_set = mysql_manager.execute_query("select source_ip, count(hash) from packetrecords where switch = \'" + trigger_switch + "\' and time_in between " + str(lTime) + " and " + str(rTime) + " group by 1")
