@@ -1,18 +1,10 @@
-import requests
 import sys
 
-from core import Datasource
-from core import Dashboard_Properties
-from core import Time
-from core import Dashboard
-from core import Panel
-from core import Grid_Position
-from core import Target
-from core import MySQL_Manager
-from core import Switch
-from core import Flow
-from core import QueryBuilder
+import requests
 
+from core import (Dashboard, Dashboard_Properties, Datasource, Flow,
+                  Grid_Position, MySQL_Manager, Panel, QueryBuilder, Switch,
+                  Target, Time)
 
 HOST            = "localhost"
 URL             = "http://" + HOST + ":3000/api/dashboards/db"
@@ -23,11 +15,11 @@ API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoib
 YEAR_SEC = 31556926
 UNIX_TIME_START_YEAR = 1970
 MAX_WIDTH = 1000000 # Nanoseconds
-LEFT_THRESHOLD = 0.5
+LEFT_THRESHOLD = 0.3
 RIGHT_THRESHOLD = 0.5
 
 DASHBOARD_TITLE = str(sys.argv[1])
-VALUE_LIST = ['link_utilization','queue_depth']
+VALUE_LIST = ['link_utilization','queue_depth', 'control_plane']
 
 
 headers = {
@@ -175,6 +167,7 @@ def main():
     panelList.append(Panel(title="Default Panel: Link Utilization", targets = [Target(rawSql=QueryBuilder(value = 'link_utilization', metricList = ['switch', 'source_ip']).get_generic_query())], datasource=scenario))
     panelList.append(Panel(title="Default Panel: Queue Depth", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario))
     panelList.append(Panel(title="Queue depth at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'', 'time_in between ' + str(lTime) + ' AND ' + str(rTime)]).get_generic_query())], datasource=scenario, lines = False, points = True))
+    panelList.append(Panel(title="Packet distribution at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'control_plane', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario))    
 
     dashboard = Dashboard(properties=Dashboard_Properties(title=DASHBOARD_TITLE ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=panelList)
     
