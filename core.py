@@ -374,11 +374,18 @@ class Flow:
 
 class QueryBuilder:
 
-    def __init__(self, value = None, metricList = None, isAggregate = None, aggregateFunc = None, isConditional = None, conditionalClauseList = None):
+    DEFAULT_TABLE = "packetrecords"
+    DEFAULT_TIME_COLUMN = "time_in"
+
+    def __init__(self, time_column = None, value = None, metricList = None, table = None, isAggregate = None, aggregateFunc = None, isConditional = None, conditionalClauseList = None):
+        if time_column is None:
+            time_column = QueryBuilder.DEFAULT_TIME_COLUMN
         if value is None:
             raise Error
         if metricList is None:
             raise Error
+        if table is None:
+            table = QueryBuilder.DEFAULT_TABLE
         if aggregateFunc is None:
             aggregateFunc = ""
             isAggregate = False
@@ -386,17 +393,20 @@ class QueryBuilder:
             conditionalClauseList = []
             isConditional = False
         
+        self.time_column = time_column
         self.value = value
         self.metricList = metricList
         self.isAggregate = isAggregate
         self.aggregateFunc = aggregateFunc
         self.isConditional = isConditional
         self.conditionalClauseList = conditionalClauseList
+        self.table = table
         
     def get_formatted_time(self, year):
         return "{}-{}-{}".format(year, "01", "01")
 
     def get_generic_query(self):
+        timeComponent = ""
         whereComponent = ""
         valueComponent = ""
         groupByComponent = ""
@@ -414,13 +424,15 @@ class QueryBuilder:
         else:
             valueComponent = self.value
 
+        timeComponent = self.time_column
         metricComponent = "concat("
+        tableComponent = self.table
         for metric in self.metricList:
             metricComponent += '\'' + metric + ':\', ' + metric + "," + "\' \'" + ","
         metricComponent = metricComponent[:-5] #Remove the last comma and space
         metricComponent += ")"
         
-        return "select time_in as \'time\', {} as metric, {} FROM packetrecords {} {} ORDER BY time_in".format(metricComponent, valueComponent, whereComponent, groupByComponent)
+        return "select {} as \'time\', {} as metric, {} FROM {} {} {} ORDER BY {}".format(timeComponent, metricComponent, valueComponent, tableComponent, whereComponent, groupByComponent, timeComponent)
 
 if __name__ == "__main__":
     dsource = Datasource(name="My Datasource", database_type="mysql", database="microburst_incast_sync1", user="sankalp")

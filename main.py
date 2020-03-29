@@ -135,6 +135,10 @@ def main():
 
     print("\n******************* END *******************\n")
 
+    trigger_time = mysql_manager.execute_query('select time_hit from triggers')[1][0]
+
+    getRatioTimeSeries(mysql_manager, trigger_switch, trigger_time, scenario)
+
     data_source = Datasource(name=scenario, database_type="mysql", database=scenario, user="sankalp")
     json_body = "{ " + data_source.get_json_string() + " }"
     response = requests.request("POST", url=DATASOURCE_URL, headers=headers, data = json_body)
@@ -166,8 +170,9 @@ def main():
     panelList = []
 
     #append Default Queries
+    panelList.append(Panel(title="Default Panel: Relative ratios of packets for each flow at Trigger Switch", targets = [Target(rawSql=QueryBuilder(time_column = "time_stamp", value= 'ratio', metricList = ['switch', 'source_ip'],  table='ratios').get_generic_query())], datasource=scenario))
     panelList.append(Panel(title="Default Panel: Link Utilization", targets = [Target(rawSql=QueryBuilder(value = 'link_utilization', metricList = ['switch', 'source_ip']).get_generic_query())], datasource=scenario))
-    panelList.append(Panel(title="Default Panel: Queue Depth", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario))
+    panelList.append(Panel(title="Default Panel: Queue Depth", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario))
     panelList.append(Panel(title="Queue depth at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'', 'time_in between ' + str(lTime) + ' AND ' + str(rTime)]).get_generic_query())], datasource=scenario, lines = False, points = True))
     panelList.append(Panel(title="Packet distribution at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'source_ip % 10', metricList = ['source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario, points = True, lines = False))    
 
@@ -184,7 +189,7 @@ def main():
 
     #Post annotations
 
-    trigger_time = mysql_manager.execute_query('select time_hit from triggers')[1][0]
+    
     # print(trigger_time)
 
     annotations_payload = "{ \"time\":" + str(trigger_time) + "000" + ", \"text\":\"Trigger Hit!\", \"dashboardId\":" + str(dashboardId) + "}"
@@ -205,7 +210,7 @@ def main():
     json_response = str(response.text.encode('utf8'))
 
 
-    getRatioTimeSeries(mysql_manager, trigger_switch, trigger_time, scenario)
+    
 
 def printConclusion(normalizedJIndex):
     if normalizedJIndex > 0.7:
@@ -282,7 +287,7 @@ def get_final_payload(dashboard):
 def getRatioTimeSeries(mysql_manager, switch, time, scenario):
     INTERVAL = 100000
     result_set = mysql_manager.execute_query("select min(time_in), max(time_out) from packetrecords where switch = '"+ switch + "'")
-    print(result_set)
+    # print(result_set)
     left_cutoff = result_set[1:][0][0]
     right_cutoff = result_set[1:][0][1]
 
@@ -315,14 +320,14 @@ def getRatioTimeSeries(mysql_manager, switch, time, scenario):
         rightPointer = rightPointer + INTERVAL
             
     
-    for ip in myDict:
-        print(str(ip))
-        for tuple in myDict[ip]:
-            print(str(ip) + " " + str(tuple))
+    # for ip in myDict:
+    #     print(str(ip))
+    #     for tuple in myDict[ip]:
+    #         print(str(ip) + " " + str(tuple))
 
-    insertIntoSQL(myDict, scenario)
+    insertIntoSQL(myDict, scenario, switch)
 
-def insertIntoSQL(myDict, db_name):
+def insertIntoSQL(myDict, db_name, switch):
     mysql_db = mysql.connector.connect(host="0.0.0.0", user="sankalp", passwd="sankalp")
     mycursor = mysql_db.cursor()
     mycursor.execute("use " + db_name)
@@ -333,7 +338,7 @@ def insertIntoSQL(myDict, db_name):
     for ip in myDict:
         query = 'INSERT INTO RATIOS (time_stamp, source_ip, switch, ratio) VALUES (%s, %s, %s, %s)'
         for (timestamp, ratio) in myDict[ip]:
-            val = (timestamp, ip, "7", ratio)
+            val = (timestamp, ip, switch, ratio)
             mycursor.execute(query, val)
 
     mysql_db.commit()
