@@ -1,6 +1,8 @@
 import sys
 
+import mysql.connector
 import requests
+from mysql.connector import Error
 
 from core import (Dashboard, Dashboard_Properties, Datasource, Flow,
                   Grid_Position, MySQL_Manager, Panel, QueryBuilder, Switch,
@@ -10,7 +12,7 @@ HOST            = "localhost"
 URL             = "http://" + HOST + ":3000/api/dashboards/db"
 ANNOTATIONS_URL = "http://" + HOST + ":3000/api/annotations"
 DATASOURCE_URL  = "http://" + HOST + ":3000/api/datasources"
-API_KEY         = "eyJrIjoia3J0T3JpcHl6U3d6Nzg0NU1zaFFhdE0zUW1CaVNSb04iLCJuIjoibXlrZXkiLCJpZCI6MX0="
+API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
 
 YEAR_SEC = 31556926
 UNIX_TIME_START_YEAR = 1970
@@ -202,6 +204,9 @@ def main():
     response = requests.request("POST", url=ANNOTATIONS_URL, headers=headers, data = annotations_payload)
     json_response = str(response.text.encode('utf8'))
 
+
+    getRatioTimeSeries(mysql_manager, trigger_switch, trigger_time, scenario)
+
 def printConclusion(normalizedJIndex):
     if normalizedJIndex > 0.7:
         print("\nCONCLUDE: It is probably a case of synchronized incast")
@@ -274,6 +279,67 @@ def get_final_payload(dashboard):
     payload = "{ \"dashboard\": {" + dashboard.get_json_string() + "}, \"overwrite\": true}"
     return payload
     
+def getRatioTimeSeries(mysql_manager, switch, time, scenario):
+    INTERVAL = 100000
+    result_set = mysql_manager.execute_query("select min(time_in), max(time_out) from packetrecords where switch = '"+ switch + "'")
+    print(result_set)
+    left_cutoff = result_set[1:][0][0]
+    right_cutoff = result_set[1:][0][1]
+
+    myDict = {}
+
+    leftPointer = time
+    while leftPointer > left_cutoff:
+        result_set = mysql_manager.execute_query("select source_ip, count(hash) from packetrecords where time_in < " + str(leftPointer) + " AND time_out > " + str(leftPointer) + " GROUP BY source_ip")[1:]
+        totalPackets = sum([row[1] for row in result_set])
+        print("Total pkts at time " + str(leftPointer) + " is " + str(totalPackets))
+        for row in result_set:
+            if row[0] in myDict:
+                myDict[row[0]].append( (leftPointer, 1.0 * row[1] / totalPackets) )
+            else:
+                myDict[row[0]] = []
+
+        leftPointer = leftPointer - INTERVAL
+
+    rightPointer = time + INTERVAL    
+    while rightPointer < right_cutoff:
+        result_set = mysql_manager.execute_query("select source_ip, count(hash) from packetrecords where time_in < " + str(rightPointer) + " AND time_out > " + str(rightPointer) + " GROUP BY source_ip")[1:]
+        totalPackets = sum([row[1] for row in result_set])
+        print("Total pkts at time " + str(rightPointer) + " is " + str(totalPackets))
+        for row in result_set:
+            if row[0] in myDict:
+                myDict[row[0]].append( (rightPointer, 1.0 * row[1] / totalPackets) )
+            else:
+                myDict[row[0]] = []
+
+        rightPointer = rightPointer + INTERVAL
+            
+    
+    for ip in myDict:
+        print(str(ip))
+        for tuple in myDict[ip]:
+            print(str(ip) + " " + str(tuple))
+
+    insertIntoSQL(myDict, scenario)
+
+def insertIntoSQL(myDict, db_name):
+    mysql_db = mysql.connector.connect(host="0.0.0.0", user="sankalp", passwd="sankalp")
+    mycursor = mysql_db.cursor()
+    mycursor.execute("use " + db_name)
+
+    mycursor.execute('DROP TABLE IF EXISTS RATIOS')
+    mycursor.execute('CREATE TABLE RATIOS (time_stamp bigint, source_ip bigint, switch VARCHAR(255), ratio decimal(5,3) )')
+
+    for ip in myDict:
+        query = 'INSERT INTO RATIOS (time_stamp, source_ip, switch, ratio) VALUES (%s, %s, %s, %s)'
+        for (timestamp, ratio) in myDict[ip]:
+            val = (timestamp, ip, "7", ratio)
+            mycursor.execute(query, val)
+
+    mysql_db.commit()
+
+
+
 
 if __name__ == "__main__":
     main()
