@@ -286,6 +286,7 @@ class MySQL_Manager:
                 resultset = cursor.fetchall()
                 resultset.insert(0, fields)
                 return resultset
+        self.connector.commit()
 
 class Switch:
 

@@ -23,6 +23,7 @@ RIGHT_THRESHOLD = 0.5
 DASHBOARD_TITLE = str(sys.argv[1])
 VALUE_LIST = ['link_utilization','queue_depth', 'control_plane']
 
+flaggg = 0
 
 headers = {
   'Accept': 'application/json',
@@ -137,7 +138,12 @@ def main():
 
     trigger_time = mysql_manager.execute_query('select time_hit from triggers')[1][0]
 
-    getRatioTimeSeries(mysql_manager, trigger_switch, trigger_time, scenario)
+    for switch in switchMap:
+        result_set = mysql_manager.execute_query("select min(time_in), max(time_out) from packetrecords where switch = '"+ switchMap[switch].identifier + "'")
+        left_cutoff = result_set[1:][0][0]
+        right_cutoff = result_set[1:][0][1]
+        print("Calculating ratios for " + str(switchMap[switch].identifier))
+        getRatioTimeSeries(mysql_manager, switchMap[switch].identifier, (left_cutoff + right_cutoff) // 2, scenario)
 
     data_source = Datasource(name=scenario, database_type="mysql", database=scenario, user="sankalp")
     json_body = "{ " + data_source.get_json_string() + " }"
@@ -291,11 +297,13 @@ def getRatioTimeSeries(mysql_manager, switch, time, scenario):
     left_cutoff = result_set[1:][0][0]
     right_cutoff = result_set[1:][0][1]
 
+    INTERVAL = (right_cutoff - left_cutoff) // 125
+
     myDict = {}
 
     leftPointer = time
     while leftPointer > left_cutoff:
-        result_set = mysql_manager.execute_query("select source_ip, count(hash) from packetrecords where time_in < " + str(leftPointer) + " AND time_out > " + str(leftPointer) + " GROUP BY source_ip")[1:]
+        result_set = mysql_manager.execute_query("select source_ip, count(hash) from packetrecords where time_in < " + str(leftPointer) + " AND time_out > " + str(leftPointer) + " and switch = '" + switch + "'" +  " GROUP BY source_ip")[1:]
         totalPackets = sum([row[1] for row in result_set])
         print("Total pkts at time " + str(leftPointer) + " is " + str(totalPackets))
         for row in result_set:
@@ -308,7 +316,7 @@ def getRatioTimeSeries(mysql_manager, switch, time, scenario):
 
     rightPointer = time + INTERVAL    
     while rightPointer < right_cutoff:
-        result_set = mysql_manager.execute_query("select source_ip, count(hash) from packetrecords where time_in < " + str(rightPointer) + " AND time_out > " + str(rightPointer) + " GROUP BY source_ip")[1:]
+        result_set = mysql_manager.execute_query("select source_ip, count(hash) from packetrecords where time_in < " + str(rightPointer) + " AND time_out > " + str(rightPointer) +  " and switch = '" + switch + "'" +  " GROUP BY source_ip")[1:]
         totalPackets = sum([row[1] for row in result_set])
         print("Total pkts at time " + str(rightPointer) + " is " + str(totalPackets))
         for row in result_set:
@@ -328,12 +336,15 @@ def getRatioTimeSeries(mysql_manager, switch, time, scenario):
     insertIntoSQL(myDict, scenario, switch)
 
 def insertIntoSQL(myDict, db_name, switch):
+    global flaggg
     mysql_db = mysql.connector.connect(host="0.0.0.0", user="sankalp", passwd="sankalp")
     mycursor = mysql_db.cursor()
     mycursor.execute("use " + db_name)
 
-    mycursor.execute('DROP TABLE IF EXISTS RATIOS')
-    mycursor.execute('CREATE TABLE RATIOS (time_stamp bigint, source_ip bigint, switch VARCHAR(255), ratio decimal(5,3) )')
+    if flaggg == 0:
+        mycursor.execute('DROP TABLE IF EXISTS RATIOS')
+        flaggg = 1
+        mycursor.execute('CREATE TABLE RATIOS (time_stamp bigint, source_ip bigint, switch VARCHAR(255), ratio decimal(5,3) )')
 
     for ip in myDict:
         query = 'INSERT INTO RATIOS (time_stamp, source_ip, switch, ratio) VALUES (%s, %s, %s, %s)'
