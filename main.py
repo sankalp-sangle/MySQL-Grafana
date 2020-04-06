@@ -12,7 +12,7 @@ HOST            = "localhost"
 URL             = "http://" + HOST + ":3000/api/dashboards/db"
 ANNOTATIONS_URL = "http://" + HOST + ":3000/api/annotations"
 DATASOURCE_URL  = "http://" + HOST + ":3000/api/datasources"
-API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
+API_KEY         = "eyJrIjoia3J0T3JpcHl6U3d6Nzg0NU1zaFFhdE0zUW1CaVNSb04iLCJuIjoibXlrZXkiLCJpZCI6MX0="
 
 YEAR_SEC = 31556926
 UNIX_TIME_START_YEAR = 1970
@@ -176,11 +176,11 @@ def main():
     panelList = []
 
     #append Default Queries
-    panelList.append(Panel(title="Default Panel: Relative ratios of packets for each flow at Trigger Switch", targets = [Target(rawSql=QueryBuilder(time_column = "time_stamp", value= 'ratio', metricList = ['switch', 'source_ip'],  table='ratios').get_generic_query())], datasource=scenario))
-    panelList.append(Panel(title="Default Panel: Link Utilization", targets = [Target(rawSql=QueryBuilder(value = 'link_utilization', metricList = ['switch', 'source_ip']).get_generic_query())], datasource=scenario))
-    panelList.append(Panel(title="Default Panel: Queue Depth", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario))
-    panelList.append(Panel(title="Queue depth at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'', 'time_in between ' + str(lTime) + ' AND ' + str(rTime)]).get_generic_query())], datasource=scenario, lines = False, points = True))
-    panelList.append(Panel(title="Packet distribution at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'source_ip % 10', metricList = ['source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario, points = True, lines = False))    
+    panelList.append(Panel(gridPos=Grid_Position(x=0,y=0),title="Default Panel: Relative ratios of packets for each flow at Trigger Switch", targets = [Target(rawSql=QueryBuilder(time_column = "time_stamp", value= 'ratio', metricList = ['switch', 'source_ip'],  table='RATIOS').get_generic_query())], datasource=scenario))
+    panelList.append(Panel(gridPos=Grid_Position(x=12,y=0),title="Default Panel: Link Utilization", targets = [Target(rawSql=QueryBuilder(value = 'link_utilization', metricList = ['switch']).get_generic_query())], datasource=scenario))
+    panelList.append(Panel(gridPos=Grid_Position(x=0,y=11),title="Default Panel: Queue Depth", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth * 80 / 1500', metricList = ['switch'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario))
+    panelList.append(Panel(gridPos=Grid_Position(x=12,y=11),title="Queue depth at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'queue_depth * 80 / 1500', metricList = ['switch', 'source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'', 'time_in between ' + str(lTime) + ' AND ' + str(rTime)]).get_generic_query())], datasource=scenario, lines = False, points = True))
+    panelList.append(Panel(gridPos=Grid_Position(x=0,y=22),title="Packet distribution at peak at trigger switch", targets = [Target(rawSql=QueryBuilder(value = 'source_ip % 10', metricList = ['source_ip'], isConditional=True, conditionalClauseList=['switch = \'' + str(trigger_switch) + '\'']).get_generic_query())], datasource=scenario, points = True, lines = False))    
 
     dashboard = Dashboard(properties=Dashboard_Properties(title=DASHBOARD_TITLE ,time=Time(timeFrom=time_from, timeTo=time_to)), panels=panelList)
     
