@@ -12,7 +12,7 @@ HOST            = "localhost"
 URL             = "http://" + HOST + ":3000/api/dashboards/db"
 ANNOTATIONS_URL = "http://" + HOST + ":3000/api/annotations"
 DATASOURCE_URL  = "http://" + HOST + ":3000/api/datasources"
-API_KEY         = "eyJrIjoia3J0T3JpcHl6U3d6Nzg0NU1zaFFhdE0zUW1CaVNSb04iLCJuIjoibXlrZXkiLCJpZCI6MX0="
+API_KEY         = "eyJrIjoiOFpNbWpUcGRPY3p2eVpTT0Iza0F5VzdNU3hJcmZrSVIiLCJuIjoibXlLZXkyIiwiaWQiOjF9"
 
 YEAR_SEC = 31556926
 UNIX_TIME_START_YEAR = 1970
@@ -152,7 +152,9 @@ def main():
 
     #delete all existing annotations
     response = requests.request("GET", url=ANNOTATIONS_URL, headers=headers)
+
     annotations = response.json()
+
     for annotation in annotations:
         annotationId = annotation['id']
         response = requests.request("DELETE", url=ANNOTATIONS_URL + "/" + str(annotationId), headers=headers)
@@ -160,7 +162,6 @@ def main():
     #time_from and time_to are lists of a tuple, [(time in seconds, 0)] like so
     time_from_seconds = mysql_manager.execute_query('select min(time_in) from packetrecords')[1][0]
     time_to_seconds = mysql_manager.execute_query('select max(time_in) from packetrecords')[1][0]
-
     #Convert to date format
     year_from = UNIX_TIME_START_YEAR + (time_from_seconds // YEAR_SEC)
     year_to = UNIX_TIME_START_YEAR + 1 + (time_to_seconds // YEAR_SEC)
@@ -291,13 +292,12 @@ def get_final_payload(dashboard):
     return payload
     
 def getRatioTimeSeries(mysql_manager, switch, time, scenario):
-    INTERVAL = 100000
     result_set = mysql_manager.execute_query("select min(time_in), max(time_out) from packetrecords where switch = '"+ switch + "'")
     # print(result_set)
     left_cutoff = result_set[1:][0][0]
     right_cutoff = result_set[1:][0][1]
 
-    INTERVAL = (right_cutoff - left_cutoff) // 125
+    INTERVAL = (right_cutoff - left_cutoff) // 250
 
     myDict = {}
 

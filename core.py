@@ -130,7 +130,7 @@ class Panel:
     DEFAULT_TITLE = "This is a sample panel title!"
     DEFAULT_PANEL_TYPE = "graph"
 
-    def __init__(self, datasource = None, id = None, title = None, panelType = None, gridPos = None, targets = None, xaxis = None, lines = None, points = None):
+    def __init__(self, datasource = None, id = None, title = None, panelType = None, gridPos = None, targets = None, xaxis = None, lines = None, points = None, bars = None, stack = None, percentage = None):
         if datasource is None:
             datasource = Panel.DEFAULT_DATASOURCE
         if id is None:
@@ -150,6 +150,12 @@ class Panel:
             lines = True
         if points is None:
             points = False
+        if bars is None:
+            bars = False
+        if stack is None:
+            stack = False
+        if percentage is None:
+            percentage = False
 
         self.datasource = datasource
         self.id = id
@@ -160,6 +166,9 @@ class Panel:
         self.xaxis = xaxis
         self.lines = lines
         self.points = points
+        self.bars = bars
+        self.stack = stack
+        self.percentage = percentage
 
     def get_collective_targets_json(self):
         if self.targets is []:
@@ -176,7 +185,7 @@ class Panel:
 
     def get_json_string(self):
         targetJSON = self.get_collective_targets_json()
-        return "\"datasource\": \"{}\",\"id\": {},\"title\": \"{}\",\"type\":\"{}\",\"gridPos\":{}, \"targets\": [{}], \"xaxis\": {}, \"lines\": {}, \"points\": {}".format(self.datasource, self.id, self.title, self.panelType, "{" + self.gridPos.get_json_string() + "}", targetJSON, "{" + self.xaxis.get_json_string() + "}", "true" if self.lines else "false", "true" if self.points else "false")
+        return "\"datasource\": \"{}\",\"id\": {},\"title\": \"{}\",\"type\":\"{}\",\"gridPos\":{}, \"targets\": [{}], \"xaxis\": {}, \"lines\": {}, \"points\": {}, \"bars\": {}, \"stack\": {}, \"percentage\": {}".format(self.datasource, self.id, self.title, self.panelType, "{" + self.gridPos.get_json_string() + "}", targetJSON, "{" + self.xaxis.get_json_string() + "}", "true" if self.lines else "false", "true" if self.points else "false","true" if self.bars else "false","true" if self.stack else "false","true" if self.percentage else "false")
 
 class Xaxis:
     def __init__(self, showAxis = None):
@@ -434,6 +443,7 @@ class QueryBuilder:
         metricComponent += ")"
         
         return "select {} as \'time\', {} as metric, {} FROM {} {} {} ORDER BY {}".format(timeComponent, metricComponent, valueComponent, tableComponent, whereComponent, groupByComponent, timeComponent)
+
 
 if __name__ == "__main__":
     dsource = Datasource(name="My Datasource", database_type="mysql", database="microburst_incast_sync1", user="sankalp")
