@@ -24,6 +24,7 @@ DASHBOARD_TITLE = str(sys.argv[1])
 VALUE_LIST = ['link_utilization','queue_depth', 'control_plane']
 
 flaggg = 0
+flaggg2 = 0
 
 headers = {
   'Accept': 'application/json',
@@ -145,6 +146,13 @@ def main():
         print("Calculating ratios for " + str(switchMap[switch].identifier))
         getRatioTimeSeries(mysql_manager, switchMap[switch].identifier, (left_cutoff + right_cutoff) // 2, scenario)
 
+    for switch in switchMap:
+        result_set = mysql_manager.execute_query("select min(time_in), max(time_out) from packetrecords where switch = '"+ switchMap[switch].identifier + "'")
+        left_cutoff = result_set[1:][0][0]
+        right_cutoff = result_set[1:][0][1]
+        print("Calculating instantaneous throughput for " + str(switchMap[switch].identifier))
+        getInstantaneousThroughputTimeSeries(mysql_manager, switchMap[switch].identifier, (left_cutoff + right_cutoff) // 2, scenario)
+    
     data_source = Datasource(name=scenario, database_type="mysql", database=scenario, user="sankalp")
     json_body = "{ " + data_source.get_json_string() + " }"
     response = requests.request("POST", url=DATASOURCE_URL, headers=headers, data = json_body)
@@ -291,6 +299,40 @@ def get_final_payload(dashboard):
     payload = "{ \"dashboard\": {" + dashboard.get_json_string() + "}, \"overwrite\": true}"
     return payload
     
+def getInstantaneousThroughputTimeSeries(mysql_manager, switch, time, scenario):
+    result_set = mysql_manager.execute_query("select min(time_in), max(time_out) from packetrecords where switch = '"+ switch + "'")
+    # print(result_set)
+    left_cutoff = result_set[1:][0][0]
+    right_cutoff = result_set[1:][0][1]
+
+    INTERVAL = (right_cutoff - left_cutoff) // 250
+
+    myDict = {}
+
+    timeL, timeR = left_cutoff, left_cutoff + INTERVAL
+
+    while timeR < right_cutoff:
+        result_set = mysql_manager.execute_query("select source_ip, count(hash) from packetrecords where time_in <= " + str(timeR) + " AND time_in >= " + str(timeL) + " and switch = '" + switch + "'" +  " GROUP BY source_ip")[1:]
+
+        for row in result_set:
+            if row[0] in myDict:
+                myDict[row[0]].append( (timeL, timeR, switch, row[1]) )
+            else:
+                myDict[row[0]] = []
+        
+        timeL = timeR
+        timeR = timeR + INTERVAL
+    
+
+
+    
+    # for ip in myDict:
+    #     print(str(ip))
+    #     for tuple in myDict[ip]:
+    #         print(str(ip) + " " + str(tuple))
+
+    insertIntoSQL2(myDict, scenario, switch, INTERVAL)
+
 def getRatioTimeSeries(mysql_manager, switch, time, scenario):
     result_set = mysql_manager.execute_query("select min(time_in), max(time_out) from packetrecords where switch = '"+ switch + "'")
     # print(result_set)
@@ -350,6 +392,25 @@ def insertIntoSQL(myDict, db_name, switch):
         query = 'INSERT INTO RATIOS (time_stamp, source_ip, switch, ratio) VALUES (%s, %s, %s, %s)'
         for (timestamp, ratio) in myDict[ip]:
             val = (timestamp, ip, switch, ratio)
+            mycursor.execute(query, val)
+
+    mysql_db.commit()
+
+def insertIntoSQL2(myDict, db_name, switch, interval):
+    global flaggg2
+    mysql_db = mysql.connector.connect(host="0.0.0.0", user="sankalp", passwd="sankalp")
+    mycursor = mysql_db.cursor()
+    mycursor.execute("use " + db_name)
+
+    if flaggg2 == 0:
+        mycursor.execute('DROP TABLE IF EXISTS THROUGHPUT')
+        flaggg2 = 1
+        mycursor.execute('CREATE TABLE THROUGHPUT (time_in bigint, time_out bigint, source_ip bigint, switch VARCHAR(255), throughput decimal(7,3) )')
+
+    for ip in myDict:
+        query = 'INSERT INTO THROUGHPUT (time_in, time_out, source_ip, switch, throughput) VALUES (%s, %s, %s, %s, %s)'
+        for (time_in, time_out, switch, throughput) in myDict[ip]:
+            val = (time_in, time_out, ip, switch, (1.0 * throughput * 1500 * 8) / interval )
             mycursor.execute(query, val)
 
     mysql_db.commit()
