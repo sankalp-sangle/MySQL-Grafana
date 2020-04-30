@@ -156,8 +156,8 @@ def main():
     # res = mysql_manager.execute_query("select distinct hash from packetrecords")[1:]
     # packetHashes = [row[0] for row in res]
 
-    # getPaths(mysql_manager, packetHashes, scenario)
-    # # # time.sleep(10)
+    getPaths(mysql_manager, scenario)
+    # # time.sleep(10)
 
     for switch in switchMap:
         result_set = mysql_manager.execute_query("select min(time_exit), max(time_exit) from linkmaps where from_switch = '"+ switchMap[switch].identifier + "'")
@@ -357,6 +357,8 @@ def getInstantaneousEgressThroughputTimeSeries(mysql_manager, switch, time, scen
 
     INTERVAL = (right_cutoff - left_cutoff) // 500
 
+    print(str(INTERVAL) + " nanosecs" )
+
     myDict = {}
 
     timeL, timeR = left_cutoff, left_cutoff + INTERVAL
@@ -419,20 +421,38 @@ def getRatioTimeSeries(mysql_manager, switch, time, scenario):
 
     insertIntoSQL(myDict, scenario, switch)
 
-def getPaths(mysql_manager, packetHashes, scenario):
+def getPaths(mysql_manager, scenario):
     myDict = {}
-    print(len(packetHashes))
-    for i in range(len(packetHashes)):
+    # print(len(packetHashes))
+
+    result_set = mysql_manager.execute_query("select time_in, time_out, switch, hash from packetrecords order by hash, time_in")[1:]
+
+    i = 0
+    print(len(result_set))
+    while i < len(result_set):
         print(i)
-        packet = packetHashes[i]
-        result_set = mysql_manager.execute_query("select time_in, time_out, switch from packetrecords where hash = "+ str(packet) + " order by time_in")[1:]
-        for i in range(len(result_set) - 1):
-            fromSwitch = result_set[i][2]
-            toSwitch = result_set[i+1][2]
+
+        rowList = []
+        currRow = result_set[i]
+        currHash = currRow[3]
+        j = i
+        while j < len(result_set) and result_set[j][3] == currHash:
+            rowList.append(result_set[j])
+            j += 1
+
+        if len(rowList) == 1:
+            i+=1
+            continue
+
+        i = j
+
+        for k in range(len(rowList) - 1):
+            fromSwitch = rowList[k][2]
+            toSwitch = rowList[k+1][2]
             link = str(fromSwitch) + "-" + str(toSwitch)
             if link not in myDict:
                 myDict[link] = []
-            myDict[link].append([result_set[i][1], result_set[i+1][0], packet])
+            myDict[link].append([rowList[k][1], rowList[k+1][0], currHash])
 
     print("Here's the dict:")
     print(myDict)
